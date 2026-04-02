@@ -1,0 +1,3 @@
+FP16 PPL: 16.76
+HessianVQ PPL: 21731.89
+Latency: 0.0022 µs/param

@@ -1,0 +1,3 @@
+PQ(2×8D, K=256) | 1.00 bpp | Corr: 0.7870 | NMSE: 0.3806
+PQ(4×4D, K=16) | 1.00 bpp | Corr: 0.7571 | NMSE: 0.4264
+Standard VQ(16D, K=65536) | 1.00 bpp | Corr: 0.9434 (from V23)

@@ -1,0 +1,4 @@
+SignedBlockVQ (K=16) | 1.00 bpp | Corr: 0.7620
+SignedBlockVQ (K=32) | 1.25 bpp | Corr: 0.8230
+RotatedBlockVQ (K=16) | 1.00 bpp | Corr: 0.7621
+RotatedBlockVQ (K=256) | 2.00 bpp | Corr: 0.9305

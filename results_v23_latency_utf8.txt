@@ -1,0 +1,3 @@
+FP16 Load: 73.89 µs
+RTN Decode: 584.81 µs
+VQ Decode:  2320.89 µs

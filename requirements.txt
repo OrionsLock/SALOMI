@@ -1,0 +1,17 @@
+# Core numerical stack
+numpy
+torch
+tqdm
+
+# Model loading / evaluation
+transformers
+datasets
+
+# Visualization used in paper figure scripts
+matplotlib
+
+# Optional accelerator backend
+pyopencl
+
+# Test runner
+pytest

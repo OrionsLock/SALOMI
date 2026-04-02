@@ -1,0 +1,10 @@
+ResidualVQ (k2=16)               0.9817     1.56      +8.0%
+ResidualVQ (k2=8)                0.9794     1.49      +7.7%
+ResidualVQ (k2=4)                0.9768     1.42      +7.4%
+MultiScaleVQ                     0.9240     0.81      +1.6%
+HessianVQ-32 (V17)               0.9238     0.81      +1.6%
+AdaptiveVQ (budget=0.75)         0.9235     0.81      +1.5%
+AdaptiveVQ (budget=0.80)         0.9227     0.81      +1.5%
+AdaptiveVQ (budget=0.70)         0.9111     0.75      +0.2%
+Ternary                          0.9094     1.58      +0.0%
+Binary                           0.8515     1.00      -6.4%

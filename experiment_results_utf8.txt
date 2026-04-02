@@ -1,0 +1,22 @@
+============================================================
+Experiment: Entropy-Constrained Sign Flipping
+============================================================
+Creating mock GPT-2 weights...
+Target Matrix: (3072, 768)
+Baseline Binary (1.00 bpp): Corr = 0.7980
+Baseline Ternary (~1.58 bpp): Corr = 0.8643
+------------------------------------------------------------
+Running Hybrid Approach (Rank 8)...
+  Low-Rank Magnitude (r=8): Cost = 0.1043 bpp
+  Target Sign BPP: 0.8957
+  Compressed Signs: Cost = 0.8957 bpp
+  Hybrid (r=8) Correlation: 0.7457
+  vs Binary: -0.0523
+------------------------------------------------------------
+Running Hybrid Approach (Rank 1)...
+  Low-Rank Magnitude (r=1): Cost = 0.0130 bpp
+  Target Sign BPP: 0.9870
+  Compressed Signs: Cost = 0.9870 bpp
+  Hybrid (r=1) Correlation: 0.7779
+  vs Binary: -0.0201
+  FAILURE: Did not beat standard binary with Rank-1.
