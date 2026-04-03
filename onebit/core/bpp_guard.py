@@ -9,6 +9,11 @@ from typing import Dict, Any, Union, List
 import struct
 import json
 
+
+def count_bits_packed(arr: np.ndarray) -> int:
+    """Count total bits in packed uint32 array."""
+    return arr.size * 32
+
 class BPPCalculator:
     """
     Accurate bits-per-parameter calculator that includes all overhead
@@ -224,6 +229,24 @@ class BPPCalculator:
                 self.add_signs(param.signs, param_count, f"{name}_signs")
 
         return self.get_detailed_breakdown()
+
+def assert_bpp_one(W_bits: np.ndarray, n_params: int, tolerance: float = 1e-9) -> None:
+    """Assert that packed weights are exactly 1.00 bpp.
+
+    Args:
+        W_bits: Packed weight array, shape [n_params_words] uint32
+        n_params: Number of parameters
+        tolerance: Tolerance for bpp check (default: 1e-9)
+
+    Raises:
+        AssertionError: If bpp is not within tolerance of 1.00
+    """
+    n_bits = count_bits_packed(W_bits)
+    bpp = n_bits / n_params
+
+    if abs(bpp - 1.0) >= tolerance:
+        raise AssertionError(f"BPP check failed: {bpp:.10f} bpp (expected 1.00 ± {tolerance})")
+
 
 def create_bpp_calculator() -> BPPCalculator:
     """Factory function"""
