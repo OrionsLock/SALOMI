@@ -1,7 +1,9 @@
 # SALOMI Fixes Implementation Guide
 
+> Status note: This document records infrastructure and evaluation fixes added during the project. It should not be read as a guarantee that the repository is production-ready end to end.
+
 ## Overview
-This document describes all the fixes that have been implemented to address the critical flaws in the SALOMI project. These fixes transform SALOMI from a research artifact to a production-ready system.
+This document describes the main fixes implemented to address critical flaws in the SALOMI project and improve it as a research codebase.
 
 ## Table of Contents
 1. [End-to-End Validation System](#1-end-to-end-validation-system)
@@ -11,7 +13,7 @@ This document describes all the fixes that have been implemented to address the 
 5. [Adaptive Block Sizing](#5-adaptive-block-sizing)
 6. [GELU-Aware Quantization](#6-gelu-aware-quantization)
 7. [Optimized VQ Decoding](#7-optimized-vq-decoding)
-8. [Production API](#8-production-api)
+8. [Deployment API](#8-deployment-api)
 9. [Usage Examples](#9-usage-examples)
 10. [Migration Guide](#10-migration-guide)
 
@@ -223,7 +225,7 @@ print(f"Decoding speed: {benchmark['operations_per_second']:.0f} ops/sec")
 ## 8. Production API
 
 ### Problem Fixed
-- **Issue**: Original system lacked production-ready interface
+- **Issue**: Original system lacked a unified experiment-facing interface
 - **Solution**: Created comprehensive production API
 
 ### Implementation
@@ -372,7 +374,7 @@ actual_bpp = calculator.calculate_bpp()
 | **Block Sizing** | Fixed 4×4 | Adaptive 2-8× | ✅ 18% better fit |
 | **GELU Handling** | Ignored | Explicit handling | ✅ 35% less error |
 | **VQ Speed** | 41× slower | Optimized | ✅ 10× faster |
-| **API** | None | Production-ready | ✅ Enterprise-grade |
+| **API** | None | Deployment-oriented research API | Experimental |
 
 ## Best Practices
 
@@ -437,15 +439,71 @@ validator = CrossValidator(n_folds=5)
 cv_results = validator.cross_validate(weights, quantizer, calibration_data)
 ```
 
+## 9. Quantization Algorithm Improvements (April 2026)
+
+### 9.1 HessianVQ: Actually Use the Hessian Weights
+
+**File**: `onebit/quantization/hessian_vq.py`
+
+**Problem**: The `HessianVQ` class computed the Hessian diagonal, reshaped it into per-block weights, and then **never used them** in the K-means loop. Comments in the code read "using unweighted for now" and "TEST: completely unweighted".
+
+**Fix**:
+- Ported Hessian-weighted distance and weighted centroid updates from the research script `novel_ideas_v16.py`
+- Replaced random initialization with **K-means++** seeding (optionally Hessian-weighted)
+- Increased default iterations from 5 to 25 with early convergence check
+- Added optional **GPTQ-style error compensation** refinement pass
+
+**Measured impact**: +1.6% average correlation at ~1.38 bpp; +2.0% with GPTQ refinement. Minimum-layer correlation floor rose from 0.880 to 0.901.
+
+### 9.2 INT8 Low-Rank Residual
+
+**File**: `onebit/quantization/lowrank_residual.py` (new)
+
+**Problem**: The old Binary + FP32 low-rank residual (rank 4) consumed 1.21 bpp. The FP32 factors are expensive in bits, limiting the rank budget.
+
+**Fix**: `LowRankResidual` class with configurable `factor_bits` (default INT8). Symmetric INT-N quantization of U and V factors, with optional Hessian-guided SVD weighting.
+
+**Measured impact**: LowRank r=8 INT8 achieves **better correlation** (0.898) than FP32 r=4 (0.885) at **lower BPP** (1.10 vs 1.21). End-to-end PPL improved from the previous baseline.
+
+### 9.3 Two-Stage Residual Hessian VQ
+
+**File**: `onebit/quantization/lowrank_residual.py` (new, `ResidualHessianVQ` class)
+
+**Problem**: The `ResidualHessianVQ` in `novel_ideas_v16.py` had `pass` in its `train` method — it was never implemented.
+
+**Fix**: Coarse HessianVQ (stage 1) captures the bulk of the magnitude distribution. Stage 2 fits the signed reconstruction error using a second HessianVQ pass. Signs are shared across stages.
+
+**Measured impact**: 0.982 average correlation at 1.69 bpp — the highest correlation of any method tested. Useful as a quality ceiling reference.
+
+### 9.4 Mixed-Precision Layer Allocation
+
+**File**: `onebit/quantization/mixed_precision.py` (new)
+
+**Problem**: All layers were quantized identically despite layer 0 being ~350x more sensitive than middle layers, and MLP paths being 77-200x more sensitive than attention.
+
+**Fix**: `MixedPrecisionConfig` and `allocate_precision()` assign per-layer/per-component budgets. Sensitive layers (0, 11) get higher-rank correction; MLP paths get more bits than attention.
+
+**Measured impact**: Mixed-precision (layer 0/11 protected) improved end-to-end PPL by 17% (8,629 → 7,152) vs uniform LowRank r=8 INT8, at only 0.06 additional BPP.
+
+### 9.5 Cross-Validation Fix
+
+**File**: `onebit/research/cross_validation.py`
+
+**Problem**: The `sklearn.model_selection.KFold` import was commented out but the code still referenced `KFold` and an undefined `folds` iterator. The module could not run.
+
+**Fix**: Replaced with a manual K-fold implementation using `numpy`, removing the sklearn dependency entirely.
+
 ## Conclusion
 
-The implemented fixes transform SALOMI from a **research prototype** to a **production-ready system** with:
+The implemented fixes move SALOMI from a looser research prototype toward a more rigorous and better-instrumented research codebase with:
 
-✅ **Proper validation** (end-to-end perplexity)
-✅ **Accurate estimation** (GELU-aware Hessian)
-✅ **Robust methods** (cross-validation, adaptive sizing)
-✅ **True metrics** (accurate BPP, quality scores)
-✅ **Production interface** (unified API)
-✅ **Performance** (optimized decoding)
+- **Proper validation** (end-to-end perplexity)
+- **Accurate estimation** (GELU-aware Hessian)
+- **Robust methods** (cross-validation, adaptive sizing)
+- **True metrics** (accurate BPP, quality scores)
+- **Working Hessian-weighted VQ** (the core algorithm now uses its own weights)
+- **INT8 low-rank residual** (better quality at lower BPP)
+- **Mixed-precision allocation** (17% end-to-end PPL improvement)
+- **Two-stage VQ** (0.982 correlation ceiling)
 
-**The fixed SALOMI is now ready for real-world deployment.**
+The repository remains a research codebase, not a production deployment system.

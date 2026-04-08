@@ -2,30 +2,30 @@
 
 **Repository:** SALOMI  
 **Primary package:** `onebit` v0.0.1  
-**Last synthesized:** 2026-04-01  
-**Purpose:** Publishable, repo-level research report covering project scope, methods, evidence, contradictions, strengths, risks, and publication readiness.
+**Last synthesized:** 2026-04-08  
+**Purpose:** Repo-level report covering project scope, methods, evidence, contradictions, risks, and current interpretation.
 
 ---
 
 ## Executive Summary
 
-SALOMI is an ambitious research codebase focused on **extreme transformer quantization**, especially the question of whether **binary or near-binary weight representations** can approach or exceed the quality of **ternary quantization** while improving storage and runtime efficiency.
+SALOMI is a research codebase focused on **extreme transformer quantization**, especially the question of whether **binary or near-binary weight representations** can approach or exceed the quality of **ternary quantization** while improving storage and runtime efficiency.
 
-The repository is technically substantial. It contains:
+The repository contains:
 
 - a nontrivial Python package with quantization, runtime, evaluation, OpenCL backend, autotuning, attention certification, and CLI tooling,
 - a large experimental history under `onebit/research/`,
 - a broad test suite under `tests/`,
 - and multiple rounds of documentation that move from **optimistic early claims** to **much more rigorous, self-correcting conclusions**.
 
-The central reconciled conclusion across the most credible materials in the repo is:
+The narrowest repo-level reading is:
 
 1. **Pure post-hoc 1.00 bpp binary quantization is not good enough for usable GPT-2–class language modeling quality.**
 2. **Per-layer correlation is not a reliable substitute for held-out perplexity.**
 3. **Strict bpp accounting materially changes several early headline claims.**
 4. **The most credible practical region is not true 1.00 bpp, but roughly 1.2-1.35 bpp using Hessian-guided VQ, mixed precision, or magnitude-recovery methods.**
 
-In short: **yes, this project is impressive**, especially as a research and systems exploration effort. It is **not yet clean enough to be presented as a polished public library or as a single authoritative paper artifact without curation**.
+For the shortest version of those claims, see `docs/VALIDATED_RESULTS.md`.
 
 ---
 
@@ -140,22 +140,25 @@ The repo repeatedly corrects earlier bpp claims by counting:
 
 That shift matters. It changes some sub-1-bit headlines into higher effective bpp regimes.
 
-### 4. Hessian-guided VQ remains one of the strongest practical directions
+### 4. Hessian-guided VQ is measurably better when actually Hessian-weighted
 
-Across the reconciled docs, **HessianVQ** or related magnitude-aware VQ methods remain among the most credible approaches, especially around **~1.25-1.32 bpp**, where per-layer metrics can beat naive ternary baselines.
+The original `HessianVQ` class computed Hessian weights but never used them in the K-means loop. After fixing this (April 2026), Hessian-weighted K-means with K-means++ initialization produces **+1.6% average correlation** at ~1.38 bpp, and **+2.0%** with GPTQ refinement. HessianVQ methods remain among the most credible approaches around **~1.2-1.4 bpp**.
 
-### 5. Mixed precision and magnitude recovery are more realistic than pure binary
+### 5. INT8 low-rank residual dominates FP32 at lower BPP
 
-The repo’s later findings consistently favor:
+Quantising low-rank correction factors to INT8 instead of FP32 frees budget to double the rank. LowRank r=8 INT8 achieves **better correlation** (0.898) than FP32 r=4 (0.885) at **lower BPP** (1.10 vs 1.21).
 
-- low-rank magnitude recovery,
-- row/column scaling,
-- selective higher precision for sensitive layers or weights,
-- and protecting MLP/GELU-heavy paths more than attention.
+### 6. Mixed precision and magnitude recovery are more realistic than pure binary
 
-### 6. MLP blocks are the main bottleneck
+The repo's findings consistently favor low-rank magnitude recovery, row/column scaling, selective higher precision for sensitive layers, and protecting MLP/GELU-heavy paths. Mixed-precision allocation improved end-to-end PPL by **17%** at only 0.06 additional BPP.
+
+### 7. MLP blocks are the main bottleneck
 
 GELU-heavy MLP layers are repeatedly identified as far more sensitive than attention, which helps explain why full-model quality collapses faster than isolated layer metrics would suggest.
+
+### 8. Two-stage VQ sets the correlation ceiling
+
+Two-stage residual HessianVQ achieves **0.982 average correlation** at 1.69 bpp, demonstrating VQ can reach very high reconstruction quality with sufficient budget.
 
 ---
 
@@ -167,11 +170,13 @@ Representative files:
 
 - `onebit/quantization/hessian_vq.py`
 - `onebit/quantization/functional.py`
+- `onebit/quantization/lowrank_residual.py`
+- `onebit/quantization/mixed_precision.py`
 - `onebit/ops/vq_optimized.py`
 
 This part of the repo is centered on block magnitude quantization plus sign handling, with Hessian-aware framing and fast decode paths.
 
-One important caveat from the code itself: `onebit/quantization/hessian_vq.py` describes Hessian-weighted VQ, but the current loop explicitly notes it is using **unweighted K-means “for now”**. That does not make the work unimpressive, but it does mean some naming and implementation details should be described carefully in any public writeup.
+As of April 2026, `hessian_vq.py` implements **true Hessian-weighted K-means** with K-means++ initialization, convergence detection, and optional GPTQ-style refinement. The earlier version computed Hessian weights but did not use them. The new `lowrank_residual.py` adds INT8-quantised low-rank correction and two-stage residual VQ. The new `mixed_precision.py` provides sensitivity-driven per-layer precision allocation.
 
 ### 1-bit compute and runtime
 
@@ -318,7 +323,7 @@ That is exactly why this report exists.
 - No root `README.md` existed before this pass.
 - Some directories do not look consistently packaged as formal Python subpackages.
 - `onebit/deploy/api.py` is not aligned with its “production-ready” label.
-- The repo root still contains many logs, debug files, and result artifacts that make the project feel more like a working lab directory than a curated public release.
+- The repo root still contains many logs, debug files, and result artifacts that make the project feel more like a working lab directory than a tighter public release.
 
 ### Maturity verdict
 
@@ -433,9 +438,10 @@ Recommended status label for GitHub:
 
 | File | Role |
 |------|------|
-| `docs/REPOSITORY_GUIDE.md` | curated technical guide to the repository |
+| `docs/VALIDATED_RESULTS.md` | narrowest summary of the most defensible current claims |
+| `docs/REPOSITORY_GUIDE.md` | technical guide to the repository |
 | `docs/PROJECT_ANALYSIS_SUMMARY.md` | validation/failure mode summary |
-| `docs/HONEST_ASSESSMENT.md` | strongest reality check |
+| `docs/HONEST_ASSESSMENT.md` | direct writeup of failure cases and caveats |
 | `docs/RIGOROUS_TESTING_PLAN.md` | claimed vs verified gap framing |
 | `docs/BINARY_QUANTIZATION_FINDINGS.md` | binary-specific findings |
 | `docs/CORRELATION_FINDINGS.md` | correlation-focused findings with perplexity caveats |

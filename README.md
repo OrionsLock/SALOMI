@@ -32,17 +32,20 @@ Notes:
 
 This is a **research repository**, not a polished production package.
 
-The most important repo-level conclusion is:
+## Current validated takeaways
 
-- **strict 1.00 bpp post-hoc binary quantization does not hold up as a strong GPT-2–class language modeling solution under rigorous evaluation**
-- more credible practical results in this repo cluster around **~1.2-1.35 bpp** using Hessian-guided VQ, mixed precision, or magnitude-recovery methods
+- **Strict 1.00 bpp post-hoc binary does not hold up as a strong GPT-2–class language-modeling solution under the repo's later evaluation docs and tests.**
+- **Correlation is not a reliable substitute for perplexity.**
+- **More credible practical results in this repo cluster around ~1.2-1.35 bpp**, especially for Hessian-guided VQ and magnitude-recovery methods.
+- **Some earlier paper-style claims were revised after stricter bpp accounting and end-to-end checks.**
 
 ## Start Here
 
-- `RESEARCH.md` — comprehensive repo-level research report and maturity assessment
-- `docs/HONEST_ASSESSMENT.md` — strongest reality-check document
+- `docs/VALIDATED_RESULTS.md` — shortest summary of the repo's narrowest defensible claims
+- `RESEARCH.md` — longer repo-level report and technical context
+- `docs/HONEST_ASSESSMENT.md` — direct writeup of where binary results fail
 - `docs/PROJECT_ANALYSIS_SUMMARY.md` — validation and failure-mode summary
-- `docs/REPOSITORY_GUIDE.md` — curated technical guide to the repository
+- `docs/REPOSITORY_GUIDE.md` — technical guide to the repository layout
 - `docs/ARCHIVE.md` — explanation of historical experiment files and naming
 - `REPRODUCIBILITY.md` — environment and rerun guidance
 - `CONTRIBUTING.md` — contribution and repo hygiene expectations
@@ -56,16 +59,6 @@ Some materials under `onebit/research/paper/` preserve **earlier, more optimisti
 - `tests/`
 
 over historical paper-draft numbers when they conflict.
-
-## What Makes This Public-Ready
-
-This repo has been curated to improve GitHub readiness:
-
-- `README.md` gives the top-level framing
-- `RESEARCH.md` is the comprehensive research report
-- `requirements.txt` documents the dependency surface
-- `.gitignore` excludes common local caches and transient files
-- `LICENSE` now provides clear reuse terms under Apache-2.0
 
 ## License
 
@@ -83,22 +76,17 @@ SALOMI/
 └── research/result artifacts and experiment scripts
 ```
 
-## Public Positioning
-
-The strongest honest framing for this project is:
-
-> A serious research and systems exploration of extreme LLM quantization, including both promising methods and rigorous evidence about where naive sub-1-bit claims break down.
-
 ## Naming Note
 
-Some filenames, especially under `onebit/research/`, preserve the chronology of the work rather than an ideal public taxonomy. Names like `novel_ideas_v*.py` are intentionally kept as part of the research trail. Public-facing readers should prioritize the curated documents and validated test paths over historical experiment filenames.
+Some filenames, especially under `onebit/research/`, preserve the chronology of the work rather than an ideal public taxonomy. Names like `novel_ideas_v*.py` are intentionally kept as part of the research trail. Public-facing readers should prioritize the summary documents and validated test paths over historical experiment filenames.
 
 ## Recommended Reading Order
 
 1. `README.md`
-2. `RESEARCH.md`
-3. `docs/HONEST_ASSESSMENT.md`
-4. `docs/PROJECT_ANALYSIS_SUMMARY.md`
-5. `docs/REPOSITORY_GUIDE.md`
+2. `docs/VALIDATED_RESULTS.md`
+3. `RESEARCH.md`
+4. `docs/HONEST_ASSESSMENT.md`
+5. `docs/PROJECT_ANALYSIS_SUMMARY.md`
+6. `docs/REPOSITORY_GUIDE.md`
 
 If you want the corrected, defensible story of the repo, read in that order before opening the historical paper drafts.

@@ -7,7 +7,6 @@ Prevents overfitting by implementing proper cross-validation
 import numpy as np
 import torch
 from typing import Dict, Any, List, Tuple, Callable
-# from sklearn.model_selection import KFold  # Commented out for now
 from tqdm import tqdm
 
 class CrossValidator:
@@ -50,15 +49,23 @@ class CrossValidator:
         else:
             data_array = calibration_data
 
-        # Create KFold splitter
-        kf = KFold(n_splits=self.n_folds, shuffle=True, random_state=self.random_state)
+        # Manual KFold (no sklearn dependency)
+        n_samples = len(data_array)
+        indices = np.arange(n_samples)
+        self.rng.shuffle(indices)
+        fold_size = n_samples // self.n_folds
+        folds = []
+        for f in range(self.n_folds):
+            val_start = f * fold_size
+            val_end = val_start + fold_size if f < self.n_folds - 1 else n_samples
+            val_idx = indices[val_start:val_end]
+            train_idx = np.concatenate([indices[:val_start], indices[val_end:]])
+            folds.append((train_idx, val_idx))
 
-        # Store results
         fold_results = []
         train_scores = []
         val_scores = []
 
-        # Perform cross-validation
         for fold_idx, (train_indices, val_indices) in enumerate(folds):
             print(f"Fold {fold_idx + 1}/{self.n_folds}")
 

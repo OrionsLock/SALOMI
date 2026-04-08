@@ -1,10 +1,10 @@
 # Correlation Findings at 1.00 bpp
 
-> Interpretation note: This document focuses on correlation-based breakthroughs in controlled residual settings. It should be read together with `docs/HONEST_ASSESSMENT.md` and `RESEARCH.md`, which explain why high correlation at 1.00 bpp does not necessarily translate to acceptable end-to-end perplexity.
+> Interpretation note: This document focuses on correlation-focused results in controlled residual settings. It should be read together with `docs/HONEST_ASSESSMENT.md` and `RESEARCH.md`, which explain why high correlation at 1.00 bpp does not necessarily translate to acceptable end-to-end perplexity.
 
 ## Executive Summary
 
-After extensive experimentation with novel approaches, we discovered that **residual connections are the key** to achieving high correlation at 1.00 bpp.
+In controlled residual experiments, **residual connections preserve hidden-state correlation much better than standalone binary layers**.
 
 ### Key Result
 | Configuration | BPP | Correlation |
@@ -14,7 +14,7 @@ After extensive experimentation with novel approaches, we discovered that **resi
 
 ---
 
-## The Breakthrough Insight
+## Main Insight
 
 ### Why Single Layer Correlation is Low (~0.65)
 
@@ -23,7 +23,7 @@ For a single MLP layer `y = activation(x @ W) @ W2`:
 - GELU amplifies these errors in the |x| < 1 region
 - Single layer correlation maxes at ~0.65 for GELU, ~0.67 for ReLU
 
-### Why Multi-Layer with Residuals Achieves ~0.98
+### Why Multi-Layer with Residuals Can Reach ~0.98 Correlation
 
 Residual connections change everything:
 ```
@@ -64,13 +64,13 @@ The residual preserves the "backbone" signal while quantization only affects the
 | GELU Replacement | ReLU | 1.00 | 0.669 | **ReLU better for binary** |
 | Pre-Activation Compensation | compensated | 1.00 | 0.639 | Complex, small gain |
 | Combined (single layer) | ReLU + optimal | 1.00 | 0.655 | Best single layer |
-| **Combined + Residual (6 layers)** | GELU + residual | 1.00 | **0.982** | **BREAKTHROUGH** |
+| **Combined + Residual (6 layers)** | GELU + residual | 1.00 | **0.982** | Best controlled result here |
 
 ---
 
-## Recommended Configuration
+## What This Suggests
 
-For achieving high correlation at 1.00 bpp:
+For hidden-state correlation in residual settings:
 
 ### Architecture Requirements
 1. **Use residual connections** (this is essential!)
@@ -113,7 +113,7 @@ def quantize_with_residual(x, W1, W2, activation):
 2. **Focus on single layer**: Missed the system-level benefit of residuals
 3. **Wrong error model**: Assumed multiplicative compounding
 
-## Why This Works
+## Why This Helps
 
 1. **Transformer architecture already uses residuals**: GPT-2, BERT, etc.
 2. **Residuals dampen error propagation**: Each layer only adds noise
@@ -121,9 +121,9 @@ def quantize_with_residual(x, W1, W2, activation):
 
 ---
 
-## Path to 1.000 Correlation
+## Limits and Extensions
 
-To achieve true 1.000 correlation at 1.00 bpp, we would need:
+To push correlation higher in this setup, we would likely need:
 
 1. **Perfect scaling**: Input-dependent optimal scales (adds ~0.01 bpp overhead)
 2. **Error correction**: 0.5% top weights in higher precision (adds ~0.02 bpp)
@@ -141,12 +141,12 @@ To achieve true 1.000 correlation at 1.00 bpp, we would need:
 
 ## Conclusion
 
-The breakthrough is that **residual connections make 1.00 bpp viable** for transformer architectures. With standard transformer architecture (which already uses residuals), binary quantization at 1.00 bpp can achieve:
+The main result in this document is that **residual structure can preserve hidden-state correlation much better than isolated binary layers**. In these controlled experiments, binary quantization at 1.00 bpp can achieve:
 
 - **0.98 correlation** for 6 layers
-- **0.95+ correlation** for 12 layers (with careful implementation)
+- **0.95+ correlation** for 12 layers (in the correlation-focused setups summarized here)
 
-This is a fundamental insight: **don't fight the architecture, use it**.
+This should be treated as a **diagnostic finding about correlation**, not as a standalone claim that post-hoc 1.00 bpp binary is acceptable for end-to-end language modeling.
 
 ---
 

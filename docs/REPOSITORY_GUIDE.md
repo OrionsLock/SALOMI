@@ -1,8 +1,8 @@
 # SALOMI Repository Guide
 
-This document is the curated technical guide to the repository layout, main methods, and where to look first.
+This document maps the repository layout, main methods, and best entry points.
 
-For the full repo-level interpretation of claims and maturity, read `RESEARCH.md` first. For the strongest evaluation caveats, read `docs/HONEST_ASSESSMENT.md`.
+For the shortest claim summary, read `docs/VALIDATED_RESULTS.md` first. For the longer repo-level context, read `RESEARCH.md`.
 
 ---
 
@@ -50,13 +50,14 @@ The main package. Key areas include:
 
 ### `docs/`
 
-Curated narrative documents. Recommended order:
+Recommended reading order:
 
-1. `docs/HONEST_ASSESSMENT.md`
-2. `docs/PROJECT_ANALYSIS_SUMMARY.md`
-3. `docs/RIGOROUS_TESTING_PLAN.md`
-4. `docs/CORRELATION_FINDINGS.md`
-5. `docs/ARCHIVE.md` for historical experiment naming/context
+1. `docs/VALIDATED_RESULTS.md`
+2. `docs/HONEST_ASSESSMENT.md`
+3. `docs/PROJECT_ANALYSIS_SUMMARY.md`
+4. `docs/RIGOROUS_TESTING_PLAN.md`
+5. `docs/CORRELATION_FINDINGS.md`
+6. `docs/ARCHIVE.md` for historical experiment naming/context
 
 ### `tests/`
 
@@ -123,14 +124,15 @@ For this project, those metrics are not interchangeable. A method that looks goo
 If you want to understand the project quickly:
 
 1. `README.md`
-2. `RESEARCH.md`
-3. `docs/HONEST_ASSESSMENT.md`
-4. `docs/PROJECT_ANALYSIS_SUMMARY.md`
-5. `tests/test_bpp_strict.py`
-6. `tests/test_perplexity_real.py`
-7. `onebit/model/runtime_transformer.py`
+2. `docs/VALIDATED_RESULTS.md`
+3. `RESEARCH.md`
+4. `docs/HONEST_ASSESSMENT.md`
+5. `docs/PROJECT_ANALYSIS_SUMMARY.md`
+6. `tests/test_bpp_strict.py`
+7. `tests/test_perplexity_real.py`
+8. `onebit/model/runtime_transformer.py`
 
-If you want to inspect the historical research trail, then move into `onebit/research/` after reading the curated materials above.
+If you want to inspect the historical research trail, then move into `onebit/research/` after reading the summary documents above.
 
 ---
 

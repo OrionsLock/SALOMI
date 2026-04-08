@@ -1,8 +1,10 @@
 # SALOMI Implementation Summary: All Fixes Applied
 
+> Status note: This document describes engineering and evaluation infrastructure added during the research process. It should not be read as a claim that the repository is a production-ready deployment system in its current form.
+
 ## Executive Summary
 
-This document provides a comprehensive summary of all the fixes that have been successfully implemented to transform SALOMI from a research prototype into a production-ready neural network quantization system.
+This document summarizes the main fixes and additions made while turning SALOMI into a more rigorous research codebase with better evaluation, accounting, and tooling.
 
 ## 1. Problem Analysis
 
@@ -15,7 +17,7 @@ This document provides a comprehensive summary of all the fixes that have been s
 5. **Fixed Block Sizes**: One-size-fits-all approach that fails on real data
 6. **GELU Ignorance**: Not accounting for GELU amplification effects
 7. **Performance Issues**: Slow VQ decoding (41× slower than FP16)
-8. **Production Readiness**: Lack of unified API and deployment tools
+8. **Deployment Tooling**: Lack of a unified experiment-facing API and reporting tools
 
 ## 2. Solutions Implemented
 
@@ -103,7 +105,7 @@ This document provides a comprehensive summary of all the fixes that have been s
 
 **Impact**: 10× faster decoding (from 41× slower to 4× faster than FP16)
 
-### 2.8 Production API
+### 2.8 Deployment API
 
 **File**: `onebit/deploy/api.py`
 
@@ -114,7 +116,7 @@ This document provides a comprehensive summary of all the fixes that have been s
 - ✅ **Optimization** (performance tuning)
 - ✅ **Reporting** (comprehensive documentation)
 
-**Impact**: Enterprise-grade deployment capability
+**Impact**: A single entry point for some deployment-oriented experiments, with the caveat that the implementation is still research-stage
 
 ## 3. Performance Improvements
 
@@ -129,7 +131,7 @@ This document provides a comprehensive summary of all the fixes that have been s
 | Block Sizing | Fixed 4×4 | Adaptive 2-8× | ✅ 18% better fit |
 | GELU Handling | Ignored | Explicit handling | ✅ 35% less error |
 | VQ Speed | 41× slower | Optimized | ✅ 10× faster |
-| API | None | Production-ready | ✅ Enterprise-grade |
+| API | None | Deployment-oriented research API | Experimental |
 
 ## 4. Usage Patterns
 
@@ -228,11 +230,17 @@ assert abs(actual_bpp - target_bpp) < 0.1  # 10% tolerance
 - `onebit/research/gelu_aware.py` - GELU-aware quantization
 - `onebit/ops/vq_optimized.py` - Optimized VQ decoding
 - `onebit/deploy/api.py` - Production API
+- `onebit/quantization/lowrank_residual.py` - INT8 low-rank residual + two-stage VQ
+- `onebit/quantization/mixed_precision.py` - Mixed-precision layer allocation
+- `tests/test_improvements.py` - Comprehensive improvement benchmark
 - `docs/FIXES_IMPLEMENTED.md` - Implementation documentation
 - `docs/IMPLEMENTATION_SUMMARY.md` - This summary
 
 ### Modified Files
 - `onebit/core/bpp_guard.py` - Enhanced with accurate BPP calculation
+- `onebit/quantization/hessian_vq.py` - Fixed: Hessian-weighted K-means, K-means++ init, GPTQ refinement
+- `onebit/quantization/__init__.py` - Updated exports for new modules
+- `onebit/research/cross_validation.py` - Fixed: broken KFold import replaced with manual impl
 
 ## 8. Testing and Validation
 
@@ -275,15 +283,41 @@ assert validation['validation_passed']
 - **Overfitting**: 40% reduction
 - **BPP Accuracy**: 15-30% more accurate
 
+### 9.3 Quantization Algorithm Improvements (April 2026)
+
+Tested on GPT-2 124M MLP c_fc weights (layers 0, 5, 11):
+
+| Method | Avg Corr | BPP | vs Old HVQ |
+|--------|----------|-----|------------|
+| OLD HVQ K=32 (unweighted) | 0.899 | 1.31 | baseline |
+| NEW HVQ K=64 (Hessian-weighted) | 0.913 | 1.38 | +1.6% |
+| NEW HVQ K=64 + GPTQ | 0.917 | 1.38 | +2.0% |
+| LowRank r=8 INT8 | 0.898 | 1.10 | -0.1% |
+| LowRank r=12 INT8 | 0.906 | 1.16 | +0.8% |
+| Two-Stage VQ 64+32 | 0.982 | 1.69 | +9.3% |
+
+End-to-end PPL (all layers, all weights):
+
+| Method | PPL | vs FP32 | BPP |
+|--------|-----|---------|-----|
+| Binary | 935,427 | 158,027x | 1.000 |
+| NEW HVQ K=64 | 25,735 | 4,348x | 1.380 |
+| LowRank r=8 INT8 | 8,629 | 1,458x | 1.111 |
+| Mixed-precision | 7,152 | 1,208x | 1.175 |
+
+See `results_improvements.txt` and `tests/test_improvements.py` for full details.
+
 ## 10. Conclusion
 
-The SALOMI project has been successfully transformed from a **research prototype** with critical flaws to a **production-ready system** with:
+The SALOMI project has been improved from a looser research prototype into a more rigorous research codebase with:
 
-✅ **Proper validation** (end-to-end perplexity)
-✅ **Accurate estimation** (GELU-aware Hessian)
-✅ **Robust methods** (cross-validation, adaptive sizing)
-✅ **True metrics** (accurate BPP, quality scores)
-✅ **Production interface** (unified API)
-✅ **Performance** (optimized decoding)
+- **Proper validation** (end-to-end perplexity)
+- **Accurate estimation** (GELU-aware Hessian)
+- **Robust methods** (cross-validation, adaptive sizing)
+- **True metrics** (accurate BPP, quality scores)
+- **Working Hessian-weighted VQ** (K-means++, convergence, GPTQ refinement)
+- **INT8 low-rank residual** (better quality at lower BPP)
+- **Mixed-precision allocation** (17% PPL improvement from protecting sensitive layers)
+- **Two-stage VQ** (0.982 correlation ceiling)
 
-**The fixed SALOMI is now ready for real-world deployment and represents state-of-the-art in neural network quantization.**
+The repository remains a research codebase; the improvements are significant and validated but end-to-end post-hoc quantization below ~2 bpp still produces unusable perplexity for GPT-2-class models without training-time adaptation.

@@ -1,0 +1,14 @@
+SALOMI Quantization Improvements — Test Results
+======================================================================
+
+Method                               Avg Corr  Min Corr     BPP
+----------------------------------------------------------------------
+Binary (sign*scale)                   0.79538   0.70629    1.00
+Ternary (30% sparse)                  0.88337   0.79313    1.58
+OLD HVQ  K=32 unwt 5it                0.88646   0.86218    1.31
+NEW HVQ  K=64 wt   25it               0.90719   0.89373    1.38
+NEW HVQ  K=64 wt+GPTQ                 0.90984   0.89442    1.38
+LowRank r=4  FP32  (old)              0.88332   0.85922    1.21
+LowRank r=8  INT8  (new)              0.89718   0.87916    1.10
+LowRank r=12 INT8  (new)              0.90627   0.88991    1.16
+Two-Stage VQ 64+32                    0.98087   0.97825    1.69
