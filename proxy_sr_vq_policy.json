@@ -1,0 +1,190 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-04-09T09:13:49.561818",
+  "metadata": {
+    "model_name": "Proxy sweep",
+    "n_params": 124439808,
+    "n_layers": 12,
+    "target_bpp": 1.2,
+    "proxy_sizes_used": [
+      "124M",
+      "pythia-6.9b"
+    ],
+    "redun_threshold": 1.0,
+    "timestamp": ""
+  },
+  "target_bpp": 1.2,
+  "n_layers": 12,
+  "blocks": [
+    {
+      "layer_idx": 0,
+      "attn_method": "lowrank",
+      "mlp_method": "lowrank",
+      "attn_redun_score": 1.1045566887882563,
+      "mlp_redun_score": 0.9108510754012968,
+      "attn_n_codes": 64,
+      "mlp_n_codes": 64,
+      "attn_rank": 8,
+      "mlp_rank": 12,
+      "attn_factor_bits": 8,
+      "mlp_factor_bits": 8
+    },
+    {
+      "layer_idx": 1,
+      "attn_method": "ternary_sparse",
+      "mlp_method": "hessian_vq",
+      "attn_redun_score": 0.976957103864859,
+      "mlp_redun_score": 0.8629604827494606,
+      "attn_n_codes": 64,
+      "mlp_n_codes": 64,
+      "attn_rank": 8,
+      "mlp_rank": 8,
+      "attn_factor_bits": 8,
+      "mlp_factor_bits": 8
+    },
+    {
+      "layer_idx": 2,
+      "attn_method": "hessian_vq",
+      "mlp_method": "hessian_vq",
+      "attn_redun_score": 0.9605715225959472,
+      "mlp_redun_score": 0.8837439619690284,
+      "attn_n_codes": 64,
+      "mlp_n_codes": 64,
+      "attn_rank": 8,
+      "mlp_rank": 8,
+      "attn_factor_bits": 8,
+      "mlp_factor_bits": 8
+    },
+    {
+      "layer_idx": 3,
+      "attn_method": "hessian_vq",
+      "mlp_method": "hessian_vq",
+      "attn_redun_score": 0.8730500314376075,
+      "mlp_redun_score": 0.8231027918162808,
+      "attn_n_codes": 64,
+      "mlp_n_codes": 64,
+      "attn_rank": 8,
+      "mlp_rank": 8,
+      "attn_factor_bits": 8,
+      "mlp_factor_bits": 8
+    },
+    {
+      "layer_idx": 4,
+      "attn_method": "hessian_vq",
+      "mlp_method": "hessian_vq",
+      "attn_redun_score": 0.9106341964323763,
+      "mlp_redun_score": 0.8267600313669795,
+      "attn_n_codes": 64,
+      "mlp_n_codes": 64,
+      "attn_rank": 8,
+      "mlp_rank": 8,
+      "attn_factor_bits": 8,
+      "mlp_factor_bits": 8
+    },
+    {
+      "layer_idx": 5,
+      "attn_method": "hessian_vq",
+      "mlp_method": "hessian_vq",
+      "attn_redun_score": 0.8658182630789708,
+      "mlp_redun_score": 0.8266970024366552,
+      "attn_n_codes": 64,
+      "mlp_n_codes": 64,
+      "attn_rank": 8,
+      "mlp_rank": 8,
+      "attn_factor_bits": 8,
+      "mlp_factor_bits": 8
+    },
+    {
+      "layer_idx": 6,
+      "attn_method": "hessian_vq",
+      "mlp_method": "hessian_vq",
+      "attn_redun_score": 0.8426698050547943,
+      "mlp_redun_score": 0.8168087677687355,
+      "attn_n_codes": 64,
+      "mlp_n_codes": 64,
+      "attn_rank": 8,
+      "mlp_rank": 8,
+      "attn_factor_bits": 8,
+      "mlp_factor_bits": 8
+    },
+    {
+      "layer_idx": 7,
+      "attn_method": "hessian_vq",
+      "mlp_method": "hessian_vq",
+      "attn_redun_score": 0.8397958286934428,
+      "mlp_redun_score": 0.8041609879809484,
+      "attn_n_codes": 64,
+      "mlp_n_codes": 64,
+      "attn_rank": 8,
+      "mlp_rank": 8,
+      "attn_factor_bits": 8,
+      "mlp_factor_bits": 8
+    },
+    {
+      "layer_idx": 8,
+      "attn_method": "hessian_vq",
+      "mlp_method": "hessian_vq",
+      "attn_redun_score": 0.8226275039940245,
+      "mlp_redun_score": 0.7985987655863735,
+      "attn_n_codes": 64,
+      "mlp_n_codes": 64,
+      "attn_rank": 8,
+      "mlp_rank": 8,
+      "attn_factor_bits": 8,
+      "mlp_factor_bits": 8
+    },
+    {
+      "layer_idx": 9,
+      "attn_method": "hessian_vq",
+      "mlp_method": "hessian_vq",
+      "attn_redun_score": 0.8267224632781344,
+      "mlp_redun_score": 0.7947921235536342,
+      "attn_n_codes": 64,
+      "mlp_n_codes": 64,
+      "attn_rank": 8,
+      "mlp_rank": 8,
+      "attn_factor_bits": 8,
+      "mlp_factor_bits": 8
+    },
+    {
+      "layer_idx": 10,
+      "attn_method": "hessian_vq",
+      "mlp_method": "hessian_vq",
+      "attn_redun_score": 0.8352452205985578,
+      "mlp_redun_score": 0.7969809019842715,
+      "attn_n_codes": 64,
+      "mlp_n_codes": 64,
+      "attn_rank": 8,
+      "mlp_rank": 8,
+      "attn_factor_bits": 8,
+      "mlp_factor_bits": 8
+    },
+    {
+      "layer_idx": 11,
+      "attn_method": "lowrank",
+      "mlp_method": "lowrank",
+      "attn_redun_score": 0.8718163836100656,
+      "mlp_redun_score": 0.8058325571538363,
+      "attn_n_codes": 64,
+      "mlp_n_codes": 64,
+      "attn_rank": 8,
+      "mlp_rank": 12,
+      "attn_factor_bits": 8,
+      "mlp_factor_bits": 8
+    }
+  ],
+  "scaling_law": {
+    "mlp": {
+      "a": 0.005977267615624432,
+      "b": 0.749554599535681,
+      "r_squared": 0.01702259379959703,
+      "n_points": 88
+    },
+    "attn": {
+      "a": -0.00688683644404168,
+      "b": 1.0801749510259877,
+      "r_squared": 0.006094372963010963,
+      "n_points": 88
+    }
+  }
+}
