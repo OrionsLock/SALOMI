@@ -48,7 +48,7 @@ Expected output: correlation and PPL table for GPT-2 124M, finishing in ~5 minut
 |---|---|
 | [`CURRENT_STATE.md`](CURRENT_STATE.md) | What works, what doesn't, what is exploratory, what is deprecated |
 | [`docs/VALIDATED_RESULTS.md`](docs/VALIDATED_RESULTS.md) | Canonical benchmark table — one source of truth for numbers |
-| [`RESEARCH.md`](RESEARCH.md) | Full repo-level technical report and research chronology |
+| [`RESEARCH.md`](RESEARCH.md) | Index of research questions, evidence locations, and main code paths |
 | [`docs/HONEST_ASSESSMENT.md`](docs/HONEST_ASSESSMENT.md) | Direct writeup of where binary results fail and why |
 | [`docs/ARCHIVE.md`](docs/ARCHIVE.md) | Explanation of historical experiment files and naming |
 | [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md) | Environment, rerun guidance, reporting standards |
@@ -75,7 +75,7 @@ Expected output: correlation and PPL table for GPT-2 124M, finishing in ~5 minut
 
 ## Note on Development History
 
-This repository was developed primarily offline in a private working directory and later published as a consolidated research snapshot. The low public commit count reflects publication history, not lack of iteration. Where earlier claims were revised after stricter evaluation, the corrections are documented explicitly in `docs/HONEST_ASSESSMENT.md`, `docs/VALIDATED_RESULTS.md`, and `RESEARCH.md`.
+This repository was developed primarily offline in a private working directory and later published as a consolidated research snapshot. The low public commit count reflects publication history, not lack of iteration. Where earlier claims were revised after stricter evaluation, the corrections are documented explicitly in `docs/HONEST_ASSESSMENT.md`, `docs/VALIDATED_RESULTS.md`, and summarized with pointers in `RESEARCH.md`.
 
 ---
 
@@ -98,7 +98,7 @@ Notes:
 1. `README.md` (this file)
 2. `CURRENT_STATE.md` — what works and what doesn't, right now
 3. `docs/VALIDATED_RESULTS.md` — canonical benchmark numbers
-4. `RESEARCH.md` — full technical report and research chronology
+4. `RESEARCH.md` — index of questions, docs, and implementation locations
 5. `docs/HONEST_ASSESSMENT.md` — documented failure modes
 
 ## Naming Note

@@ -1,6 +1,6 @@
 # SALOMI Research: Executive Summary
 
-> Status note: This summary reflects an earlier, more optimistic draft narrative. Several headline claims were later re-evaluated under stricter bpp accounting and end-to-end testing. For the current repo-level interpretation, prefer `README.md`, `RESEARCH.md`, and the documents under `docs/`.
+> Status note: This summary reflects an earlier, more optimistic draft narrative. Several headline claims were later re-evaluated under stricter bpp accounting and end-to-end testing. For the current interpretation, use `README.md`, `docs/VALIDATED_RESULTS.md`, `docs/HONEST_ASSESSMENT.md`, and the index in `RESEARCH.md`.
 
 ## Sub-1-Bit Neural Network Quantization That Beats Ternary
 

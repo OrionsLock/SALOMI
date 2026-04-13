@@ -1,6 +1,6 @@
 # Correlation Findings at 1.00 bpp
 
-> Interpretation note: This document focuses on correlation-focused results in controlled residual settings. It should be read together with `docs/HONEST_ASSESSMENT.md` and `RESEARCH.md`, which explain why high correlation at 1.00 bpp does not necessarily translate to acceptable end-to-end perplexity.
+> Interpretation note: This document focuses on correlation-focused results in controlled residual settings. Read it with `docs/HONEST_ASSESSMENT.md` and the pointers in `RESEARCH.md`, which tie correlation metrics to full-model perplexity caveats.
 
 ## Executive Summary
 

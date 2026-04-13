@@ -34,7 +34,7 @@ Please try to:
 
 Please keep these distinctions clear:
 
-- `docs/` and `RESEARCH.md` should reflect the most defensible current narrative
+- `docs/` should hold the defensible narrative; `RESEARCH.md` should stay a short index pointing to those docs (not a parallel “synthesized report”)
 - `tests/` should hold repeatable validation where possible
 - `onebit/research/` may contain exploratory work, but new files should be named clearly and avoid overstating conclusions
 - historical paper-style docs should not silently become the only source of truth

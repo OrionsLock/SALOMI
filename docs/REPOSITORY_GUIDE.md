@@ -2,7 +2,7 @@
 
 This document maps the repository layout, main methods, and best entry points.
 
-For the shortest claim summary, read `docs/VALIDATED_RESULTS.md` first. For the longer repo-level context, read `RESEARCH.md`.
+For the shortest claim summary, read `docs/VALIDATED_RESULTS.md` first. For a compact map of research scope and where evidence lives, read `RESEARCH.md`.
 
 ---
 
@@ -125,7 +125,7 @@ If you want to understand the project quickly:
 
 1. `README.md`
 2. `docs/VALIDATED_RESULTS.md`
-3. `RESEARCH.md`
+3. `RESEARCH.md` (scope index and pointers)
 4. `docs/HONEST_ASSESSMENT.md`
 5. `docs/PROJECT_ANALYSIS_SUMMARY.md`
 6. `tests/test_bpp_strict.py`

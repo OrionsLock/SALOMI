@@ -1,6 +1,6 @@
 # Sub-1-Bit Neural Network Quantization via Hessian-Weighted Vector Quantization
 
-> Status note: This file is preserved as a historical paper-style draft from an earlier stage of the project. Some headline claims here were later tightened or revised after stricter bpp accounting and end-to-end evaluation. For the most defensible current interpretation of the repository, start with `README.md`, `RESEARCH.md`, and the documents under `docs/`.
+> Status note: This file is preserved as a historical paper-style draft from an earlier stage of the project. Some headline claims here were later tightened or revised after stricter bpp accounting and end-to-end evaluation. For the defensible current interpretation, start with `README.md`, `docs/VALIDATED_RESULTS.md`, and `docs/HONEST_ASSESSMENT.md`; see `RESEARCH.md` for a compact map of scope and file locations.
 
 **SALOMI: Stochastic Approximation for Low-Memory Inference**
 

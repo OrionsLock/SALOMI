@@ -7,7 +7,7 @@ This repository is a research codebase with both validated tests and many histor
 For the most defensible current interpretation of the repository:
 
 1. Read `README.md`
-2. Read `RESEARCH.md`
+2. Read `RESEARCH.md` (scope index and links to canonical docs)
 3. Read `docs/HONEST_ASSESSMENT.md`
 4. Read `docs/PROJECT_ANALYSIS_SUMMARY.md`
 
@@ -83,7 +83,7 @@ When reproducing or extending results, report at minimum:
 If you are trying to validate the repo for external readers, prefer the combination of:
 
 - `README.md`
-- `RESEARCH.md`
+- `RESEARCH.md` (index of questions and evidence locations)
 - `docs/`
 - `tests/`
 
