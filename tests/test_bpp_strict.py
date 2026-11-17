@@ -402,7 +402,7 @@ class TestMissingOverhead:
         
         # Metadata overhead is small but should be counted
         overhead = (bpp - 1.0) * np.prod(shape)
-        assert overhead == metadata_bits, "Metadata bits should be counted"
+        assert overhead == pytest.approx(metadata_bits), "Metadata bits should be counted"
 
 
 class TestRealWorldScenarios:

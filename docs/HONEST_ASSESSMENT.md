@@ -1,5 +1,13 @@
 # HONEST ASSESSMENT: Binary Quantization Reality
 
+> [!IMPORTANT]
+> **November 2026 update (Phase 0).** The qualitative conclusion of this document still holds: post-training binary
+> quantization does not work for GPT-2 and ~1-bit needs training. But the perplexity numbers in the sections below were produced
+> by older scripts with a non-standard eval text and broken INT baselines (e.g. "INT4 = 8,812" came from per-tensor absmax
+> quantization that also quantized the embeddings). Canonical numbers are now in [`CURRENT_STATE.md`](../CURRENT_STATE.md),
+> produced by `onebit/eval/harness.py`; see [`PHASE0_AUDIT.md`](PHASE0_AUDIT.md) for details. The tables marked *superseded*
+> are kept only for history.
+
 ## Executive Summary
 
 **Binary (1.00 bpp) quantization DOES NOT WORK for LLMs without extensive calibration/training.**
