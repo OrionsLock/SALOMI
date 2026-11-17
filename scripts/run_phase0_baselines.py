@@ -43,8 +43,9 @@ def print_table(out_dir: str) -> None:
     for path in sorted(glob.glob(os.path.join(out_dir, "*.json"))):
         with open(path) as f:
             r = json.load(f)
+        commit = r["env"]["git_commit"][:8] + ("+dirty" if r["env"].get("git_dirty") else "")
         rows.append((r["result"]["bpp_linear"], r["run_name"], r["result"]["ppl"],
-                     r["result"]["bpp_whole_model"], r["protocol"]["full_test_set"], r["env"]["git_commit"][:8]))
+                     r["result"]["bpp_whole_model"], r["protocol"]["full_test_set"], commit))
     rows.sort(key=lambda x: -x[0])
     print(f"| {'run':<38} | {'bpp (linear)':>12} | {'bpp (whole)':>11} | {'WikiText-2 PPL':>14} | full | commit |")
     print(f"|{'-'*40}|{'-'*14}|{'-'*13}|{'-'*16}|------|--------|")
