@@ -10,10 +10,10 @@ These documents reflect findings that have been confirmed by end-to-end testing 
 
 | Document | Contents |
 |---|---|
-| [`VALIDATED_RESULTS.md`](VALIDATED_RESULTS.md) | Canonical benchmark table; best-supported quantitative claims |
-| [`HONEST_ASSESSMENT.md`](HONEST_ASSESSMENT.md) | Confirmed failure modes; where 1.00 bpp breaks and why |
-| [`CORRELATION_FINDINGS.md`](CORRELATION_FINDINGS.md) | The correlation/PPL gap; why correlation is not sufficient evidence |
-| [`FIXES_IMPLEMENTED.md`](FIXES_IMPLEMENTED.md) | Algorithm corrections made and their measured impact |
+| [`VALIDATED_RESULTS.md`](VALIDATED_RESULTS.md) | Canonical benchmark table (harness JSON only); best-supported quantitative claims |
+| [`PHASE0_AUDIT.md`](PHASE0_AUDIT.md) | Retractions of earlier numbers, code fixes, rules for reporting new results |
+| [`HONEST_ASSESSMENT.md`](HONEST_ASSESSMENT.md) | Confirmed failure modes; where 1.00 bpp breaks and why (old PPL tables marked superseded) |
+| [`CORRELATION_FINDINGS.md`](CORRELATION_FINDINGS.md) | The correlation/PPL gap; why correlation is not sufficient evidence (numbers predate the harness) |
 
 ---
 
@@ -46,6 +46,7 @@ These documents are preserved for provenance and historical context. They may co
 | Document | Contents |
 |---|---|
 | [`ARCHIVE.md`](ARCHIVE.md) | Explanation of historical experiment file naming |
+| [`FIXES_IMPLEMENTED.md`](FIXES_IMPLEMENTED.md) | Earlier algorithm "fixes"; some were incomplete (see `PHASE0_AUDIT.md`) |
 | [`BINARY_QUANTIZATION_FINDINGS.md`](BINARY_QUANTIZATION_FINDINGS.md) | Earlier binary quantization findings, partially superseded |
 | [`SALOMI-RESEARCH-FINDINGS.md`](SALOMI-RESEARCH-FINDINGS.md) | Early research notes |
 | [`SALOMI-PROJECT-PLAN.md`](SALOMI-PROJECT-PLAN.md) | Original project plan |

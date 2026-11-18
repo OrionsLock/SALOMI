@@ -18,23 +18,56 @@ copied from older logs. For what was retracted and why, see [`PHASE0_AUDIT.md`](
 
 ## Canonical results (Phase 0)
 
-<!-- PHASE0_TABLE -->
+| Method | Config | bpp (linear) | bpp (whole) | WikiText-2 PPL | × FP32 | Record |
+|---|---|---:|---:|---:|---:|---|
+| FP32 | — | 32.000 | 26.921 | 29.95 | 1.00 | `fp32_gpt2` |
+| FP16 | — | 16.000 | 16.000 | 29.95 | 1.00 | `fp16_gpt2` |
+| RTN INT8 | per-channel | 8.031 | 10.561 | 29.99 | 1.00 | `rtn_w8_perchan_gpt2` |
+| **GPTQ INT4** | group 128 | 4.250 | 7.980 | 31.28 | 1.04 | `gptq_w4_g128_gpt2` |
+| RTN INT4 | group 128 | 4.250 | 7.980 | 33.26 | 1.11 | `rtn_w4_g128_gpt2` |
+| RTN INT4 | per-channel | 4.031 | 7.831 | 38.35 | 1.28 | `rtn_w4_perchan_gpt2` |
+| **GPTQ INT3** | group 128 | 3.250 | 7.298 | 41.43 | 1.38 | `gptq_w3_g128_gpt2` |
+| RTN INT3 | group 128 | 3.250 | 7.298 | 66.19 | 2.21 | `rtn_w3_g128_gpt2` |
+| **GPTQ INT2** | group 128 | 2.250 | 6.615 | 689.11 | 23 | `gptq_w2_g128_gpt2` |
+| RTN INT2 | group 128 | 2.250 | 6.615 | 3,017 | 101 | `rtn_w2_g128_gpt2` |
+| Ternary TWN | per-channel, thr 0.7·mean | 1.616 | 6.182 | 34,466 | 1,151 | `ternary_twn_perchan_gpt2` |
+| Ternary absmean (BitNet rule) | per-channel | 1.616 | 6.182 | 1,696,137 | 56,631 | `ternary_perchan_gpt2` |
+| Legacy mixed (HVQ + low-rank) | L0/L11 protected | 1.164 | 5.874 | 17,266 | 576 | `legacy_mixed_perchan_gpt2` |
+| Binary absmean | group 128 | 1.125 | 5.847 | 293,959 | 9,815 | `binary_g128_gpt2` |
+| Legacy low-rank residual r=8 | INT8 factors | 1.111 | 5.838 | 15,444 | 516 | `legacy_lowrank_r8_perchan_gpt2` |
+| Binary SVID (OneBit init, no training) | row + col vectors | 1.028 | 5.781 | 92,925 | 3,103 | `binary_svid_perchan_gpt2` |
+| Binary absmean | per-channel | 1.016 | 5.773 | 190,302 | 6,354 | `binary_perchan_gpt2` |
 
 Records: [`results/phase0/`](../results/phase0/). Regenerate this table with `python scripts/run_phase0_baselines.py --table`.
 
-<!-- PHASE0_PROVENANCE -->
+Provenance: each JSON stores the commit it ran from. Runs flagged `+dirty` in the `--table` output were made from the
+working tree while this branch was being built; the code in `onebit/` and `scripts/` that produced them is identical to commit
+`fdf4ad5`, except that `ternary_twn` and the table printer were added later (`f68e2a9`, `0ab2888`). In most cases the dirty flag
+was caused only by untracked result files; the harness now ignores `results/` when computing it.
 
 ## Validated or defensible claims
 
 ### 1. Post-training quantization at ~1–1.6 bpp does not work on GPT-2 124M
 
-<!-- CLAIM1 -->
+| | bpp (linear) | PPL | × FP32 |
+|---|---:|---:|---:|
+| Best ≤1.6 bpp post-training result (legacy low-rank r=8) | 1.111 | 15,444 | 516 |
+| Fair ternary (TWN) | 1.616 | 34,466 | 1,151 |
+| OneBit SVID init, no training | 1.028 | 92,925 | 3,103 |
+| Binary absmean, per-channel | 1.016 | 190,302 | 6,354 |
+
+For reference, guessing uniformly over the 50,257-token vocabulary gives PPL 50,257. Every ≤1.6 bpp post-training model is
+within ~3× of that or worse.
 
 This matches the literature: even at 1.3B parameters, the best PTQ binarization (BiLLM) is several times worse than FP.
 
 ### 2. Correct low-bit baselines are much stronger than the repo previously reported
 
-<!-- CLAIM2 -->
+With correct group-wise scales and a real GPTQ, INT4 is close to lossless (GPTQ 31.28, +4.5%; RTN 33.26, +11%) and INT3
+is usable with GPTQ (41.43, 1.38×), versus the earlier claims of INT4 = 8,812 and "usable quality needs ~8 bits". GPTQ beats
+RTN at every width, and the gap widens as bits drop (INT2: 689 vs 3,017). These are the baselines any ~1-bit method should be
+compared with **at equal bytes**: a 1-bit model of a larger network should be compared with an INT3/INT4 GPTQ model of the
+same size in bytes, not with FP16.
 
 ### 3. Correlation and perplexity are not interchangeable
 
@@ -62,7 +95,7 @@ This is preliminary: partial test set, tiny token budget, no tuning. Record:
 | INT4 PPL = 8,812 / 16,881; INT2 = 7,913 | Withdrawn — per-tensor absmax quantizer that also quantized embeddings |
 | "Hessian-weighted VQ +1.6% correlation" | Withdrawn — the weighting was a no-op, and the end-to-end runs passed `H = ones` |
 | "HVQ + GPTQ refinement +2.0%" | Withdrawn — the refinement was not GPTQ (fixed noise); now raises `NotImplementedError` |
-| "Mixed precision improves PPL 17% (8,629 → 7,152)" | Withdrawn as stated — both numbers were on the repeated-paragraph text; see the legacy rows above for the harness numbers |
+| "Mixed precision improves PPL 17% (8,629 → 7,152)" | Withdrawn — both numbers came from the repeated-paragraph text. Under the harness, mixed (17,266) is *worse* than low-rank r=8 alone (15,444) |
 | "MLP 77–200× more sensitive than attention" | Unverified — not re-measured with the harness |
 | Proxy-SR-VQ Redun Score transfer / 70B scaling law | Withdrawn — score is dominated by magnitude CV; 2 model sizes, R² ≈ 0.01 |
 

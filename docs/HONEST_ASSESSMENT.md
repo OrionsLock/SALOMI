@@ -58,7 +58,12 @@ The residual connections successfully recover correlation at the final layer, bu
 - Would need 0.999+ correlation for acceptable PPL
 - Binary quantization cannot achieve 0.999+ correlation
 
-## Real Test Results on GPT-2 (124M parameters)
+## Real Test Results on GPT-2 (124M parameters) — *superseded*
+
+> [!WARNING]
+> Superseded. This table came from `tests/comprehensive_real_test.py` before the fix (per-tensor absmax INT quantizers that also
+> quantized the embeddings, short eval text). In particular, "INT4 = 8,812" and "INT2 better than INT4" are artifacts.
+> Harness numbers: INT4 g128 = 33.26 (RTN) / 31.28 (GPTQ); INT2 g128 = 3,017 (RTN) / 689 (GPTQ); FP32 = 29.95. See `CURRENT_STATE.md`.
 
 | Method | Bits Per Param | Perplexity | vs FP32 |
 |--------|----------------|------------|---------|
@@ -87,7 +92,9 @@ The residual connections successfully recover correlation at the final layer, bu
 - They cannot compensate for the ~12,000x perplexity degradation
 - The MLP layers' GELU nonlinearity amplifies quantization error
 
-### 4. Only INT8 Maintains Quality
+### 4. Only INT8 Maintains Quality — *superseded*
+> Under the harness, INT8 is 29.99 (1.00×) and INT4 g128 + GPTQ is 31.28 (1.04×); INT4 is fine when quantized correctly.
+
 - INT8 (8 bpp) achieves just 1.24x perplexity increase
 - This is a 31.75x compression from FP32
 - This aligns with industry practice (GPTQ, AWQ, etc.)
@@ -122,13 +129,16 @@ To achieve usable quality at 1.00 bpp, you would need:
 
 ### Realistic BPP Estimates for Usable Quality
 
-| Target Quality | Required BPP | Compression |
-|----------------|--------------|-------------|
-| < 2x PPL increase | ~8 bits | 4x |
-| < 5x PPL increase | ~4 bits | 8x |
-| < 10x PPL increase | ~3 bits | 10.7x |
-| < 100x PPL increase | ~2 bits | 16x |
-| Usable binary | Not achievable without retraining | N/A |
+Updated with harness numbers (GPT-2 124M, WikiText-2 test, post-training, bpp of the transformer-block linears):
+
+| Target quality | Post-training bpp needed | Evidence |
+|---|---|---|
+| < 1.1× FP PPL | ~4.25 (INT4 g128 + GPTQ) | `gptq_w4_g128_gpt2`: 31.28 |
+| < 1.5× FP PPL | ~3.25 (INT3 g128 + GPTQ) | `gptq_w3_g128_gpt2`: 41.43 |
+| < 100× FP PPL | ~2.25 (INT2 g128 + GPTQ) | `gptq_w2_g128_gpt2`: 689 (23×) |
+| Usable at ~1–1.6 bpp | Not achievable post-training | best ≤1.6 bpp result is 15,444 (516×) |
+
+The old version of this table ("< 2× needs ~8 bits") was derived from the broken INT baselines.
 
 ## Conclusion
 
@@ -136,12 +146,12 @@ To achieve usable quality at 1.00 bpp, you would need:
 
 The honest reality:
 - Simple binary quantization produces unusable models
-- Industry-standard INT8 provides the best quality-size tradeoff
+- Correctly implemented INT4 (group-wise, GPTQ) is near-lossless; the old INT8-only conclusion came from broken INT4 code
 - True binary quantization requires model retraining, not just post-training quantization
 
 ## Recommendations
 
-1. **For production**: Use INT8 (8 bpp) with established methods (GPTQ, AWQ)
+1. **For production**: Use INT4 with GPTQ/AWQ (near-lossless on GPT-2 under the harness); INT8 if you need zero risk
 2. **For research**: Focus on training-aware binary quantization
 3. **For SALOMI**: The stochastic BSDM-W approach may help but needs proper validation
 

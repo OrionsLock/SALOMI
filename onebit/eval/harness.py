@@ -298,7 +298,7 @@ def environment_info() -> Dict[str, str]:
 
     return {
         "git_commit": _git("rev-parse", "HEAD"),
-        "git_dirty": bool(_git("status", "--porcelain")),
+        "git_dirty": bool(_git("status", "--porcelain", "--", ".", ":(exclude)results")),  # ignore result JSONs
         "python": platform.python_version(),
         "torch": torch.__version__,
         "transformers": transformers.__version__,

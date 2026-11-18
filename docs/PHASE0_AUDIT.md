@@ -92,7 +92,8 @@ Caveats:
 - Trained on WikiText-2 *train*, the same domain as the test set.
 - Still about 7× FP.
 
-Even so, with 0.0003B tokens it is ~27× better than the best post-training result in the repo at a lower bpp. It strongly suggests that the
+Even so, with 0.0003B tokens it is far ahead of every post-training result at ≤1.6 bpp (best: legacy low-rank r=8, 15,444 on the
+full test set; the eval sets differ, so the ratio is only indicative). It strongly suggests that the
 research direction should move to training-based quantization, consistent with OneBit (arXiv:2402.11295) and ParetoQ (arXiv:2502.02631).
 Script: [`scripts/onebit_kd_poc.py`](../scripts/onebit_kd_poc.py).
 
