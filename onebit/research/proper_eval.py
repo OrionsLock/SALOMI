@@ -2,17 +2,29 @@
 """
 Proper End-to-End Evaluation System for SALOMI
 Fixes the validation flaws by implementing proper perplexity evaluation
+
+Phase-0 rewrite: the previous implementation could not run (no ``set_format``
+on the tokenized dataset, wrong ``input=`` kwarg to the model, forward-pass
+exceptions silently swallowed, pad tokens scored, line-level WikiText rows).
+Perplexity is now computed exclusively by the shared harness
+(:mod:`onebit.eval.harness`: WikiText-2-raw test split joined with "\\n\\n",
+non-overlapping windows, token-weighted NLL).  Exceptions are never swallowed.
+
+Bits-per-parameter are no longer "measured" from ad-hoc tensor attributes
+(that returned 0 for real models); use the :class:`onebit.eval.harness.BitReport`
+returned by the harness quantizers instead.
 """
 
-import torch
-import numpy as np
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from datasets import load_dataset
-from torch.utils.data import DataLoader
-import torch.nn.functional as F
-from tqdm import tqdm
 import time
 from typing import Dict, Any, Optional
+
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+from onebit.eval import harness
+
+_DATASET_ALIASES = {"wikitext": "wikitext2", "wikitext2": "wikitext2", "wikitext-2": "wikitext2"}
+
 
 class EndToEndEvaluator:
     """
@@ -26,161 +38,74 @@ class EndToEndEvaluator:
         """
         self.model_name = model_name
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._ids_cache: Dict[tuple, torch.Tensor] = {}
         self._load_model_and_tokenizer()
 
     def _load_model_and_tokenizer(self):
         """Load model and tokenizer with proper configuration"""
         print(f"Loading {self.model_name} model and tokenizer...")
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        self.tokenizer.pad_token = self.tokenizer.eos_token
 
         # Load model in evaluation mode
-        self.model = AutoModelForCausalLM.from_pretrained(self.model_name)
+        self.model = AutoModelForCausalLM.from_pretrained(self.model_name, torch_dtype=torch.float32)
         self.model.eval()
         self.model.to(self.device)
 
-    def evaluate_perplexity(self, quantized_model, dataset_name: str = "wikitext",
-                           split: str = "validation", max_samples: int = 100,
-                           seq_length: int = 512) -> Dict[str, Any]:
+    def _eval_ids(self, dataset_name: str, split: str) -> torch.Tensor:
+        ds = _DATASET_ALIASES.get(dataset_name)
+        if ds is None:
+            raise ValueError(f"Unsupported dataset: {dataset_name!r} (supported: wikitext2)")
+        key = (ds, split)
+        if key not in self._ids_cache:
+            self._ids_cache[key] = harness.load_eval_ids(self.tokenizer, ds, split)
+        return self._ids_cache[key]
+
+    def evaluate_perplexity(self, quantized_model, dataset_name: str = "wikitext2",
+                           split: str = "test", max_windows: Optional[int] = None,
+                           seq_length: int = 1024) -> Dict[str, Any]:
         """
-        Evaluate quantized model using proper perplexity metric
+        Evaluate a model with the shared harness perplexity protocol.
 
         Args:
-            quantized_model: Quantized model to evaluate
-            dataset_name: Name of dataset to use
-            split: Dataset split (train/validation/test)
-            max_samples: Maximum number of samples to evaluate
-            seq_length: Sequence length for evaluation
+            quantized_model: (Quantized) HF causal LM to evaluate
+            dataset_name: "wikitext2" (alias "wikitext")
+            split: Dataset split (test by default; use "validation" for tuning)
+            max_windows: Debug-only cap on the number of ``seq_length`` windows;
+                None = full split
+            seq_length: Window length (non-overlapping)
 
         Returns:
             Dictionary containing evaluation metrics
         """
-        # Load dataset
-        dataset = self._load_dataset(dataset_name, split, max_samples, seq_length)
-
-        # Create data loader
-        dataloader = DataLoader(dataset, batch_size=8, shuffle=False)
-
-        # Evaluate
-        results = self._run_evaluation(quantized_model, dataloader)
-
-        return results
-
-    def _load_dataset(self, dataset_name: str, split: str, max_samples: int, seq_length: int):
-        """Load and preprocess dataset"""
-        print(f"Loading {dataset_name} dataset, split: {split}")
-
-        if dataset_name == "wikitext":
-            dataset = load_dataset("wikitext", "wikitext-2-raw-v1", split=split)
-        elif dataset_name == "ptb":
-            dataset = load_dataset("ptb_text_only", split=split)
-        else:
-            raise ValueError(f"Unsupported dataset: {dataset_name}")
-
-        # Tokenize and preprocess
-        def tokenize_function(examples):
-            # Tokenize with padding
-            tokenized = self.tokenizer(
-                examples["text"],
-                truncation=True,
-                max_length=seq_length,
-                padding="max_length",
-                return_tensors="pt"
-            )
-            return {
-                "input_ids": tokenized["input_ids"],
-                "attention_mask": tokenized["attention_mask"]
-            }
-
-        # Apply tokenization
-        dataset = dataset.map(tokenize_function, batched=True)
-
-        # Limit samples
-        if len(dataset) > max_samples:
-            dataset = dataset.select(range(max_samples))
-
-        return dataset
-
-    def _run_evaluation(self, quantized_model, dataloader) -> Dict[str, Any]:
-        """Run actual evaluation loop"""
-        print("Running evaluation...")
-
-        total_loss = 0.0
-        total_tokens = 0
-        batch_times = []
-        token_count = 0
-
-        quantized_model.eval()
+        ids = self._eval_ids(dataset_name, split)
         quantized_model.to(self.device)
-
-        with torch.no_grad():
-            for batch_idx, batch in enumerate(tqdm(dataloader, desc="Evaluating")):
-                # Move batch to device
-                input_ids = batch["input_ids"].to(self.device)
-                attention_mask = batch["attention_mask"].to(self.device)
-
-                # Measure inference time
-                start_time = time.time()
-
-                # Forward pass
-                try:
-                    outputs = quantized_model(
-                        input=input_ids,
-                        attention_mask=attention_mask
-                    )
-                    logits = outputs.logits
-                except Exception as e:
-                    print(f"Error in forward pass: {e}")
-                    continue
-
-                # Measure time
-                batch_time = time.time() - start_time
-                batch_times.append(batch_time)
-
-                # Compute loss (shifted for autoregressive)
-                labels = input_ids[:, 1:].contiguous()  # Shift for autoregressive
-                shift_logits = logits[:, :-1, :].contiguous()
-
-                # Compute cross-entropy loss
-                loss = F.cross_entropy(
-                    shift_logits.view(-1, logits.size(-1)),
-                    labels.view(-1),
-                    reduction='sum'
-                )
-
-                # Accumulate statistics
-                total_loss += loss.item()
-                total_tokens += labels.numel()
-                token_count += labels.numel()
-
-        # Calculate final metrics
-        avg_loss = total_loss / total_tokens
-        perplexity = torch.exp(torch.tensor(avg_loss)).item()
-
-        # Calculate latency metrics
-        avg_latency = np.mean(batch_times) * 1000  # Convert to ms
-        tokens_per_second = token_count / np.sum(batch_times) if batch_times else 0
-
+        t0 = time.time()
+        res = harness.perplexity(quantized_model, ids, seqlen=seq_length,
+                                 max_windows=max_windows, device=str(self.device))
+        elapsed = time.time() - t0
         return {
-            "perplexity": perplexity,
-            "average_loss": avg_loss,
-            "total_tokens": total_tokens,
-            "average_latency_ms": avg_latency,
-            "tokens_per_second": tokens_per_second,
-            "batch_count": len(batch_times),
-            "successful_batches": len(batch_times)
+            "perplexity": res["ppl"],
+            "average_loss": res["nll"],
+            "total_tokens": res["tokens"],
+            "windows": res["windows"],
+            "seq_length": seq_length,
+            "split": split,
+            "full_split": max_windows is None,
+            "eval_seconds": elapsed,
+            "tokens_per_second": res["tokens"] / elapsed if elapsed > 0 else float("nan"),
         }
 
     def evaluate_quality_metrics(self, original_model, quantized_model,
-                                dataset_name: str = "wikitext") -> Dict[str, Any]:
+                                dataset_name: str = "wikitext2",
+                                max_windows: Optional[int] = None) -> Dict[str, Any]:
         """
         Compare original vs quantized model quality
         """
         print("Evaluating quality metrics...")
 
         # Evaluate both models
-        original_results = self.evaluate_perplexity(original_model, dataset_name)
-        quantized_results = self.evaluate_perplexity(quantized_model, dataset_name)
+        original_results = self.evaluate_perplexity(original_model, dataset_name, max_windows=max_windows)
+        quantized_results = self.evaluate_perplexity(quantized_model, dataset_name, max_windows=max_windows)
 
         # Calculate quality metrics
         ppl_ratio = quantized_results["perplexity"] / original_results["perplexity"]
@@ -194,65 +119,35 @@ class EndToEndEvaluator:
             "relative_quality": 100 - quality_loss if quality_loss < 100 else 0
         }
 
-    def validate_quantization(self, quantized_model, bpp_target: float,
-                             dataset_name: str = "wikitext") -> Dict[str, Any]:
+    def validate_quantization(self, quantized_model, bit_report: "harness.BitReport",
+                             dataset_name: str = "wikitext2",
+                             max_windows: Optional[int] = None) -> Dict[str, Any]:
         """
-        Comprehensive validation of quantization method
+        Quality + size report for a quantized model.
+
+        ``bit_report`` must be the :class:`onebit.eval.harness.BitReport` returned
+        by the harness quantizer that produced ``quantized_model``; bits are not
+        inferred from the model object.
         """
-        print(f"Validating quantization at {bpp_target} bpp...")
-
-        # Evaluate quality
-        quality_results = self.evaluate_quality_metrics(self.model, quantized_model, dataset_name)
-
-        # Measure actual BPP
-        actual_bpp = self._measure_actual_bpp(quantized_model)
-
-        # Check if meets target
-        bpp_ratio = actual_bpp / bpp_target
-        meets_target = abs(bpp_ratio - 1.0) < 0.1  # 10% tolerance
-
+        if not isinstance(bit_report, harness.BitReport):
+            raise TypeError(
+                "validate_quantization needs the harness BitReport returned by the quantizer "
+                "(e.g. harness.quantize_model_rtn_style / gptq_quantize_model)."
+            )
+        quality_results = self.evaluate_quality_metrics(self.model, quantized_model, dataset_name, max_windows)
         return {
-            "bpp_target": bpp_target,
-            "actual_bpp": actual_bpp,
-            "bpp_ratio": bpp_ratio,
-            "meets_bpp_target": meets_target,
+            "bits": bit_report.summary(),
             "quality_metrics": quality_results,
-            "validation_passed": meets_target and quality_results["relative_quality"] > 80
         }
 
     def _measure_actual_bpp(self, model) -> float:
-        """Measure actual bits per parameter including all overhead"""
-        total_bits = 0
-        total_params = 0
+        """Removed: bpp cannot be recovered from a dequantized model object."""
+        raise NotImplementedError(
+            "_measure_actual_bpp was removed (it returned 0 for real models). Use the "
+            "onebit.eval.harness.BitReport returned by the harness quantizers "
+            "(report.bpp_linear / report.bpp_whole_model)."
+        )
 
-        for name, param in model.named_parameters():
-            if hasattr(param, "quantized_data"):
-                # Base quantization data
-                total_bits += len(param.quantized_data) * 8
-
-                # Codebook overhead
-                if hasattr(param, "codebook"):
-                    total_bits += len(param.codebook) * 8
-
-                # Metadata
-                if hasattr(param, "metadata"):
-                    total_bits += len(param.metadata) * 8
-
-                # Sign bits
-                if hasattr(param, "signs"):
-                    total_bits += len(param.signs) * 8
-
-                # Index bits
-                if hasattr(param, "indices"):
-                    total_bits += len(param.indices) * 8
-
-                # Routing bits
-                if hasattr(param, "routing_bits"):
-                    total_bits += len(param.routing_bits) * 8
-
-                total_params += param.numel()
-
-        return total_bits / total_params if total_params > 0 else 0
 
 def create_evaluator(model_name: str = "gpt2") -> EndToEndEvaluator:
     """Factory function to create evaluator"""

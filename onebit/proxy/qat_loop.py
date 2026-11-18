@@ -11,6 +11,17 @@ Phase 2 -- Lightweight QAT with STE
     used in the forward path (STE for gradients).  Every N steps the
     Redun Scores are recomputed and the DynamicAllocator can reallocate
     blocks whose scores drifted beyond a threshold.
+
+    NOTE (Phase 0): Phase 2 is currently DISABLED and raises
+    ``NotImplementedError``.  The previous implementation could not train:
+    the STE was applied under ``torch.no_grad()`` inside a forward pre-hook
+    and written into ``weight.data`` (so no gradient ever reached the latent
+    weights or the scales, and the FP weights were destroyed on the first
+    step), all model parameters were frozen, it would also binarize the tied
+    LM head / embeddings, and the per-row scale used the wrong axis for HF
+    ``Conv1D`` (stored as (in, out)).  A proper KD-QAT path (teacher logits,
+    latent FP weights, STE inside autograd, block linears only) is planned
+    as a separate module.
 """
 from __future__ import annotations
 
@@ -94,6 +105,8 @@ class BlockCalibrator:
 
             layer_mse_before = 0.0
             layer_mse_after = 0.0
+            layer_bits = 0.0
+            layer_params = 0
 
             for comp_name, submod in layer_targets:
                 is_attn = comp_name.startswith("attn")
@@ -110,20 +123,29 @@ class BlockCalibrator:
                 W_orig = adapter.get_weight_numpy(submod)
                 H_diag = np.mean(X_inputs ** 2, axis=0).astype(np.float32)
 
-                Y_before = X_inputs @ W_orig.T
+                # The hooked outputs include the bias; add it to the linear
+                # reconstructions so mse_before measures only numerical error.
+                bias = getattr(submod, "bias", None)
+                b = bias.detach().cpu().float().numpy() if bias is not None else 0.0
+
+                Y_before = X_inputs @ W_orig.T + b
                 mse_before = float(np.mean((Y_before - Y_outputs) ** 2))
                 layer_mse_before += mse_before
 
                 quantizer = self._make_quantizer(method_name, method_kwargs)
                 W_q = quantizer.quantize(W_orig, H_diag)
 
-                Y_after = X_inputs @ W_q.T
+                Y_after = X_inputs @ W_q.T + b
                 mse_after = float(np.mean((Y_after - Y_outputs) ** 2))
                 layer_mse_after += mse_after
 
+                n_w = int(W_orig.size)
+                layer_bits += self._quantizer_bpp(quantizer, n_w) * n_w
+                layer_params += n_w
+
                 adapter.set_weight_numpy(submod, W_q)
 
-            bpp = self._estimate_block_bpp_from_budget(budget)
+            bpp = layer_bits / layer_params if layer_params else float("nan")
             results.append(CalibrationResult(
                 layer_idx=layer_idx,
                 method=f"attn:{budget.attn_method}/mlp:{budget.mlp_method}",
@@ -131,7 +153,7 @@ class BlockCalibrator:
                 mse_after=layer_mse_after,
                 bpp=bpp,
             ))
-            print(f"  Layer {layer_idx}: MSE {layer_mse_before:.6f} -> {layer_mse_after:.6f} | bpp ~{bpp:.2f}")
+            print(f"  Layer {layer_idx}: MSE {layer_mse_before:.6f} -> {layer_mse_after:.6f} | bpp {bpp:.3f}")
 
         return results
 
@@ -149,17 +171,17 @@ class BlockCalibrator:
             outputs_list.append(y)
 
         handle = submod.register_forward_hook(_hook)
-        with torch.no_grad():
-            for text in calib_texts[:n_samples]:
-                ids = tokenizer(
-                    text, return_tensors="pt",
-                    truncation=True, max_length=max_len,
-                )
-                try:
-                    model(**ids)
-                except Exception:
-                    pass
-        handle.remove()
+        device = next(model.parameters()).device
+        try:
+            with torch.no_grad():
+                for text in calib_texts[:n_samples]:
+                    ids = tokenizer(
+                        text, return_tensors="pt",
+                        truncation=True, max_length=max_len,
+                    ).to(device)
+                    model(**ids)  # errors propagate (previously swallowed silently)
+        finally:
+            handle.remove()
 
         if not inputs_list:
             return None, None
@@ -177,12 +199,13 @@ class BlockCalibrator:
         from ..quantization.lowrank_residual import LowRankResidual
 
         if method == "hessian_vq":
+            # gptq_refine was a fake refinement and now raises; real GPTQ lives in
+            # onebit/quantization/gptq.py.
             return HessianVQ(
                 n_codes=kwargs.get("n_codes", 64),
                 block_size=4,
                 max_iter=15,
                 use_hessian_weight=True,
-                gptq_refine=True,
             )
         elif method == "ternary_sparse":
             return TernarySparse(sparsity=0.3, residual_top_k=0.01, residual_bits=8)
@@ -195,12 +218,13 @@ class BlockCalibrator:
             return HessianVQ(n_codes=64, block_size=4, max_iter=15)
 
     @staticmethod
-    def _estimate_block_bpp_from_budget(budget) -> float:
-        """Rough BPP estimate for one transformer block."""
-        bpp_map = {"hessian_vq": 1.1, "ternary_sparse": 1.6, "lowrank": 1.3, "fp16": 16.0}
-        attn_bpp = bpp_map.get(budget.attn_method, 1.2)
-        mlp_bpp = bpp_map.get(budget.mlp_method, 1.2)
-        return (attn_bpp + mlp_bpp) / 2
+    def _quantizer_bpp(quantizer, n_weights: int) -> float:
+        """Actual bits/weight reported by a fitted quantizer (incl. its side info)."""
+        from ..quantization.lowrank_residual import LowRankResidual
+
+        if isinstance(quantizer, LowRankResidual):
+            return float(quantizer.effective_bpp())
+        return float(quantizer.effective_bpp(n_weights))
 
 
 # ======================================================================
@@ -277,12 +301,25 @@ class QuantizedLinear(nn.Module):
         return F.linear(x, W_q, self.bias)
 
 
+_PHASE2_DISABLED_MSG = (
+    "QAT Phase 2 (STE) is disabled: the previous implementation could not train "
+    "(STE applied under torch.no_grad() and written into weight.data, so no gradients "
+    "reached the latent weights/scales and FP weights were overwritten; all parameters "
+    "frozen; tied LM head/embeddings would be binarized; wrong scale axis for HF Conv1D). "
+    "A proper KD-QAT path (teacher logits, latent FP weights, STE inside autograd, "
+    "transformer-block linears only) is planned as a separate module. Use Phase 1 "
+    "(BlockCalibrator) or onebit/quantization/gptq.py for post-training quantization."
+)
+
+
 class QATLoop:
     """Lightweight QAT with periodic Redun Score reprobing.
 
     Token budget: ~10% of original training data.  Uses STE for the
     quantised forward pass and periodically recomputes Redun Scores
     to adapt allocation.
+
+    Currently disabled (raises ``NotImplementedError``); see module docstring.
     """
 
     def __init__(self, cfg: QATConfig):
@@ -297,7 +334,7 @@ class QATLoop:
         redun_computer=None,
         device: str = "cpu",
     ) -> Dict[str, Any]:
-        """Execute Phase 2 QAT.
+        """Execute Phase 2 QAT (disabled).
 
         Args:
             model: the *already calibrated* model (from Phase 1).
@@ -307,116 +344,15 @@ class QATLoop:
             redun_computer: RedunScoreComputer for reprobing.
             device: torch device.
 
-        Returns:
-            Dict with loss_history, reprobe_events, final_loss.
+        Raises:
+            NotImplementedError: always; see ``_PHASE2_DISABLED_MSG``.
         """
-        model = model.to(device)
-        model.train()
-
-        for p in model.parameters():
-            p.requires_grad = False
-
-        trainable = self._inject_ste_scales(model)
-
-        optimizer = torch.optim.AdamW(trainable, lr=self.cfg.lr)
-
-        loss_history: List[float] = []
-        reprobe_events: List[Dict[str, Any]] = []
-        prev_config = None
-
-        for step in range(self.cfg.n_steps):
-            text = train_texts[step % len(train_texts)]
-            ids = tokenizer(
-                text, return_tensors="pt",
-                truncation=True, max_length=self.cfg.max_len,
-            ).to(device)
-
-            outputs = model(**ids, labels=ids["input_ids"])
-            loss = outputs.loss
-
-            optimizer.zero_grad()
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(trainable, 1.0)
-            optimizer.step()
-
-            loss_val = loss.item()
-            loss_history.append(loss_val)
-
-            if step % self.cfg.log_every == 0:
-                print(f"  QAT step {step}/{self.cfg.n_steps}: loss={loss_val:.4f}")
-
-            if (
-                allocator is not None
-                and redun_computer is not None
-                and step > 0
-                and step % self.cfg.reprobe_every == 0
-            ):
-                model.eval()
-                with torch.no_grad():
-                    new_scores = redun_computer.compute_model_redun(
-                        model, tokenizer, train_texts[:16], n_samples=16,
-                    )
-                model.train()
-
-                if prev_config is not None:
-                    new_config = allocator.reallocate(
-                        prev_config, new_scores, self.cfg.drift_threshold,
-                    )
-                    changed = sum(
-                        1 for i in range(new_config.n_layers)
-                        if (new_config.layer_budgets[i].attn_method != prev_config.layer_budgets[i].attn_method
-                            or new_config.layer_budgets[i].mlp_method != prev_config.layer_budgets[i].mlp_method)
-                    )
-                    reprobe_events.append({
-                        "step": step,
-                        "blocks_changed": changed,
-                    })
-                    if changed > 0:
-                        print(f"    Reprobe @ step {step}: {changed} blocks reallocated")
-                    prev_config = new_config
-                else:
-                    prev_config = allocator.allocate(
-                        new_scores, model.config.n_layer,
-                    )
-
-        return {
-            "loss_history": loss_history,
-            "reprobe_events": reprobe_events,
-            "final_loss": loss_history[-1] if loss_history else float("inf"),
-        }
+        raise NotImplementedError(_PHASE2_DISABLED_MSG)
 
     @staticmethod
     def _inject_ste_scales(model) -> List[nn.Parameter]:
-        """Make per-row scale parameters trainable for STE quantisation.
-
-        We don't replace the full linear layers; instead we attach a
-        learnable ``_ste_scale`` buffer to each linear and override the
-        weight in forward via a hook.
-
-        Returns the list of trainable parameters for the optimizer.
-        """
-        trainable: List[nn.Parameter] = []
-
-        for name, mod in model.named_modules():
-            if isinstance(mod, nn.Linear) or (hasattr(mod, "weight") and hasattr(mod, "nf")):
-                if hasattr(mod, "weight") and mod.weight is not None:
-                    d_out = mod.weight.shape[0]
-                    scale = nn.Parameter(
-                        torch.mean(torch.abs(mod.weight.data), dim=1, keepdim=True)
-                    )
-                    mod.register_parameter("_ste_scale", scale)
-                    trainable.append(scale)
-
-                    def _make_hook(module):
-                        def _hook(mod, inputs):
-                            with torch.no_grad():
-                                W_q = ste_sign(mod.weight) * mod._ste_scale
-                                mod.weight.data.copy_(W_q)
-                        return _hook
-
-                    mod.register_forward_pre_hook(_make_hook(mod))
-
-        return trainable
+        """Removed: the hook binarized ``weight.data`` under ``no_grad`` (no gradient path)."""
+        raise NotImplementedError(_PHASE2_DISABLED_MSG)
 
 
 # ======================================================================
@@ -434,33 +370,35 @@ def run_full_pipeline(
     qat_cfg: Optional[QATConfig] = None,
     device: str = "cpu",
 ) -> Dict[str, Any]:
-    """Run Phase 1 + Phase 2 sequentially.
+    """Run Phase 1 (+ Phase 2 if explicitly requested).
 
     Args:
         model: HuggingFace GPT-2 model.
         tokenizer: matching tokenizer.
         config: MixedPrecisionConfig from the DynamicAllocator.
         calib_texts: calibration strings (Phase 1).
-        train_texts: training strings (Phase 2, default = calib_texts).
+        train_texts: training strings for Phase 2.  Phase 2 only runs when
+            ``train_texts`` or ``qat_cfg`` is given, and it currently raises
+            ``NotImplementedError`` (see module docstring).
         allocator: optional DynamicAllocator for Phase 2 reallocation.
         redun_computer: optional RedunScoreComputer for Phase 2 reprobing.
         qat_cfg: optional QATConfig overrides.
         device: torch device.
 
     Returns:
-        Dict with phase1_results, phase2_results.
+        Dict with phase1_results, phase2_results (None unless Phase 2 requested).
     """
     print("=== Phase 1: Block-wise Calibration ===")
     calibrator = BlockCalibrator(n_calib_samples=min(256, len(calib_texts)))
     phase1 = calibrator.calibrate_model(model, tokenizer, config, calib_texts, device)
 
     phase2 = None
-    if train_texts or calib_texts:
+    if train_texts or qat_cfg is not None:
         texts = train_texts or calib_texts
-        if qat_cfg is None:
-            qat_cfg = QATConfig(n_steps=200)
         print("\n=== Phase 2: Lightweight QAT ===")
-        qat = QATLoop(qat_cfg)
+        qat = QATLoop(qat_cfg or QATConfig(n_steps=200))
         phase2 = qat.run(model, tokenizer, texts, allocator, redun_computer, device)
+    else:
+        print("(Phase 2 QAT skipped: disabled pending the KD-QAT implementation)")
 
     return {"phase1_results": phase1, "phase2_results": phase2}

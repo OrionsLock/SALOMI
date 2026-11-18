@@ -1,0 +1,54 @@
+{
+ "bpp": 1.0277777777777777,
+ "args": {
+  "minutes": 40.0,
+  "seq": 256,
+  "bs": 2,
+  "lr": 0.0005,
+  "eval_windows": 20,
+  "eval_every": 100,
+  "scale_only": false,
+  "out": "onebit_kd_log.json"
+ },
+ "evals": [
+  {
+   "step": 0,
+   "tokens": 0,
+   "ppl": 81758.78499063388
+  },
+  {
+   "step": 100,
+   "tokens": 51200,
+   "ppl": 359.2999877243004
+  },
+  {
+   "step": 200,
+   "tokens": 102400,
+   "ppl": 295.3831992260067
+  },
+  {
+   "step": 300,
+   "tokens": 153600,
+   "ppl": 241.62799021140972
+  },
+  {
+   "step": 400,
+   "tokens": 204800,
+   "ppl": 227.96978728710326
+  },
+  {
+   "step": 500,
+   "tokens": 256000,
+   "ppl": 212.0830533607741
+  },
+  {
+   "step": 582,
+   "tokens": 297984,
+   "ppl": 209.5314922802496,
+   "final": true
+  }
+ ],
+ "teacher_ppl": 31.021327052489735,
+ "note": "PRELIMINARY CPU proof-of-concept (pre-harness scratch version of scripts/onebit_kd_poc.py; identical protocol: WikiText-2 test, first 20 x 1024-token windows). Trained on WikiText-2 train, single seed, 2 CPU cores, 40 min. Not a validated result.",
+ "audited_base_commit": "9c3e106"
+}
