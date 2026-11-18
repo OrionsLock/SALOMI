@@ -1,0 +1,48 @@
+{
+  "run_name": "gptq_w2_g128_gpt2",
+  "protocol": {
+    "dataset": "wikitext-2-raw-v1/test",
+    "join": "\\n\\n",
+    "seqlen": 1024,
+    "windows": 280,
+    "scored_tokens": 286440,
+    "full_test_set": true,
+    "quantized": "transformer-block linear weights; embeddings/LN/biases/lm_head kept FP"
+  },
+  "config": {
+    "method": "gptq",
+    "model": "gpt2",
+    "bits": 2,
+    "group": 128,
+    "seqlen": 1024,
+    "max_windows": null,
+    "calib_samples": 128,
+    "calib_seqlen": 512,
+    "seed": 0,
+    "run_name": null,
+    "extra": {}
+  },
+  "result": {
+    "ppl": 689.1083300032655,
+    "nll": 6.535398486525865,
+    "bpp_linear": 2.25,
+    "bpp_whole_model": 6.615129203670903,
+    "linear_params": 84934656,
+    "other_params_fp16": 39505152,
+    "total_params": 124439808
+  },
+  "timing_seconds": {
+    "quantize": 654.986302614212,
+    "eval": 427.8385946750641
+  },
+  "env": {
+    "git_commit": "4065da5bc1631a7e2c9b30913c72133f8d107101",
+    "git_dirty": false,
+    "python": "3.11.2",
+    "torch": "2.15.0+cpu",
+    "transformers": "5.23.0",
+    "platform": "Linux-6.12.105+-x86_64-with-glibc2.36",
+    "device": "cpu",
+    "timestamp_utc": "2026-11-18T13:59:32+00:00"
+  }
+}
