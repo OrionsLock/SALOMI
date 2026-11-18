@@ -17,9 +17,9 @@ correct and partly artifacts of the measurement setup:
 
 | Earlier claim | What was actually going on | Status |
 |---|---|---|
-| FP32 GPT-2 PPL = 5.92 | Eval text was one paragraph repeated 20× (1,024 tokens). GPT-2 copies repeated text, so PPL is artificially low. On WikiText-2 test, FP32 is about 30. | **Retracted** |
+| FP32 GPT-2 PPL = 5.92 | Eval text was one paragraph repeated 20× (1,024 tokens). GPT-2 copies repeated text, so PPL is artificially low. On the full WikiText-2 test set, FP32 is 29.95 (`fp32_gpt2`). | **Retracted** |
 | "1,208× / 1,458× / 158,027× worse than FP32" | The denominators come from the repeated-text eval | **Retracted** |
-| INT4 = 8,812 PPL (381× worse); INT2 better than INT4 | Per-tensor absmax scale, wrong level counts, embeddings and tied LM head quantized, ~60-token eval. Correct group-128 INT4 is within ~10–15% of FP. | **Retracted** |
+| INT4 = 8,812 PPL (381× worse); INT2 better than INT4 | Per-tensor absmax scale, wrong level counts, embeddings and tied LM head quantized, ~60-token eval. Correct group-128 INT4 is 33.26 with RTN (+11%) and 31.28 with GPTQ (+4.5%). | **Retracted** |
 | "Usable quality needs ~8 bits" table | Derived from the broken baselines above | **Retracted** |
 | HessianVQ "GPTQ refinement +2%" | `_gptq_refine` multiplied its result by 0 and kept only a per-row DC offset (uncounted bits). Not GPTQ. | **Retracted**; real GPTQ now in `onebit/quantization/gptq.py` |
 | "Hessian-weighted" end-to-end PPLs | PART 2 of `tests/test_improvements.py` passed `H_diag = np.ones`, and the assignment step ignored weights anyway | **Retracted** (the numbers were unweighted K-means) |
