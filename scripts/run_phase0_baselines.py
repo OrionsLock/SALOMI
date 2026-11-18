@@ -30,6 +30,7 @@ SUITE = [
     RunConfig(method="gptq", bits=3, group=128),
     RunConfig(method="gptq", bits=2, group=128),
     RunConfig(method="ternary", group=0),
+    RunConfig(method="ternary_twn", group=0),
     RunConfig(method="binary", group=0),
     RunConfig(method="binary", group=128),
     RunConfig(method="binary_svid", group=0),

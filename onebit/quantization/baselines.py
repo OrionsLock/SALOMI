@@ -63,6 +63,25 @@ def ternary_absmean(w: torch.Tensor, group: Optional[int] = None) -> Tuple[torch
     return wq.reshape_as(w), float(total_bits)
 
 
+def ternary_twn(w: torch.Tensor, group: Optional[int] = None) -> Tuple[torch.Tensor, float]:
+    """Ternary Weight Networks (Li et al., 2016) post-training ternarization.
+
+    threshold = 0.7 * mean|w|; scale = mean of |w| over the kept (non-zero) weights, per row/group.
+    Unlike ``ternary_absmean`` (the BitNet b1.58 *training* rule, which assigns every non-zero the
+    overall mean|w| and so shrinks large weights), this is the approximately MSE-optimal ternary
+    and therefore the fair post-training ternary baseline. Same storage: 1.6 bits/weight + fp16 scale.
+    """
+    wg, g = _grouped(w.float(), group)
+    a = wg.abs()
+    delta = 0.7 * a.mean(-1, keepdim=True)
+    mask = (a > delta).float()
+    scale = (a * mask).sum(-1, keepdim=True) / mask.sum(-1, keepdim=True).clamp(min=1.0)
+    wq = torch.sign(wg) * mask * scale
+    n_groups = wg.shape[0] * wg.shape[1]
+    total_bits = w.numel() * 1.6 + n_groups * FP_META_BITS
+    return wq.reshape_as(w), float(total_bits)
+
+
 def binary_absmean(w: torch.Tensor, group: Optional[int] = None) -> Tuple[torch.Tensor, float]:
     """sign(w) * mean|w| per output row (or per group). 1 bit/weight + fp16 scale per group."""
     wg, g = _grouped(w.float(), group)

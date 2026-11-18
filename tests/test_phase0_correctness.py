@@ -62,6 +62,16 @@ def test_ternary_binary_bits():
     assert bits == 32 * 256 + 32 * 2 * 16
 
 
+def test_ternary_twn_bits_and_mse():
+    w = torch.randn(64, 512)
+    wq, bits = B.ternary_twn(w, group=None)
+    assert bits == pytest.approx(64 * 512 * 1.6 + 64 * 16)
+    # at most 3 distinct values per row
+    assert all(torch.unique(row).numel() <= 3 for row in wq)
+    w_abs, _ = B.ternary_absmean(w, group=None)
+    assert _mse(wq, w) < _mse(w_abs, w)
+
+
 # ---------------------------------------------------------------------------
 # GPTQ
 # ---------------------------------------------------------------------------

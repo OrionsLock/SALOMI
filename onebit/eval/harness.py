@@ -374,6 +374,8 @@ def run(cfg: RunConfig) -> Dict:
         report = quantize_model_rtn_style(model, lambda w, c: B.rtn(w, cfg.bits, group))
     elif cfg.method == "ternary":
         report = quantize_model_rtn_style(model, lambda w, c: B.ternary_absmean(w, group))
+    elif cfg.method == "ternary_twn":
+        report = quantize_model_rtn_style(model, lambda w, c: B.ternary_twn(w, group))
     elif cfg.method == "binary":
         report = quantize_model_rtn_style(model, lambda w, c: B.binary_absmean(w, group))
     elif cfg.method == "binary_svid":
@@ -428,7 +430,7 @@ def run(cfg: RunConfig) -> Dict:
 def main(argv: Optional[List[str]] = None) -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--method", default="fp16",
-                   help="fp16 | fp32 | rtn | gptq | ternary | binary | binary_svid | legacy_<name>")
+                   help="fp16 | fp32 | rtn | gptq | ternary | ternary_twn | binary | binary_svid | legacy_<name>")
     p.add_argument("--model", default="gpt2")
     p.add_argument("--bits", type=int, default=4)
     p.add_argument("--group", type=int, default=128, help="group size; <=0 for per-output-channel")
