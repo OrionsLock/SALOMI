@@ -1,0 +1,111 @@
+{
+  "run_name": "smoke_binary_e8_from_ternary_gpt2_win2",
+  "protocol": {
+    "dataset": "wikitext-2-raw-v1/test",
+    "join": "\\n\\n",
+    "seqlen": 1024,
+    "windows": 2,
+    "scored_tokens": 2046,
+    "full_test_set": false,
+    "quantized": "transformer-block linear weights + quantized embeddings/tied lm_head; LN/biases kept FP"
+  },
+  "config": {
+    "method": "kd_qat_binary",
+    "model": "gpt2",
+    "qat": {
+      "mode": "binary",
+      "group_size": null,
+      "init_method": "twn",
+      "learnable_scale": true,
+      "use_shift": false,
+      "lsq_scale_grad": false,
+      "grad_clip": null,
+      "train_signs": true,
+      "embed_bits": 8,
+      "embed_symmetric": true,
+      "embed_group_size": null,
+      "quantize_pos_embeddings": true,
+      "freeze_embeddings": false
+    },
+    "train": {
+      "model": "gpt2",
+      "dataset": "wikitext2-train",
+      "dataset_config": null,
+      "shuffle_buffer": 10000,
+      "seqlen": 64,
+      "batch_size": 2,
+      "grad_accum": 1,
+      "max_tokens": 3000000000,
+      "max_steps": 5,
+      "lr": 0.0005,
+      "scale_lr": 0.002,
+      "other_lr": null,
+      "weight_decay": 0.0,
+      "scale_weight_decay": 0.0,
+      "betas": [
+        0.9,
+        0.95
+      ],
+      "warmup_steps": 2,
+      "warmup_ratio": 0.0,
+      "min_lr_ratio": 0.1,
+      "grad_clip": 1.0,
+      "kl_weight": 1.0,
+      "ce_weight": 0.0,
+      "temperature": 1.0,
+      "hidden_mse_weight": 0.0,
+      "dtype": "fp32",
+      "compile_model": false,
+      "seed": 0,
+      "num_threads": null,
+      "eval_every": 0,
+      "eval_windows": 2,
+      "final_eval_windows": 2,
+      "eval_seqlen": 1024,
+      "log_every": 1,
+      "save_every": 0,
+      "run_name": "smoke_binary_e8_from_ternary_gpt2_win2",
+      "resume": null,
+      "init_from_checkpoint": "checkpoints/phase1/smoke_ternary_e8_gpt2_win2/latest.pt",
+      "init_source": "latent"
+    }
+  },
+  "result": {
+    "ppl": 1763.0331561680061,
+    "nll": 7.474790988896016,
+    "bpp_linear": 1.0277777777777777,
+    "bpp_whole_model": 3.2556014229787302,
+    "linear_params": 84934656,
+    "other_params_fp16": 121344,
+    "total_params": 124439808,
+    "embed_params": 39383808,
+    "bpp_embed": 8.020833333333334
+  },
+  "timing_seconds": {
+    "train": 26.58262801170349,
+    "eval": 9.207887411117554
+  },
+  "env": {
+    "git_commit": "66cdaf1d6557e7aa55b8feb45632435f8389b2a8",
+    "git_dirty": true,
+    "python": "3.12.16",
+    "torch": "2.15.0+cpu",
+    "transformers": "5.24.1",
+    "platform": "Linux-6.18.57-x86_64-with-glibc2.39",
+    "device": "cpu",
+    "timestamp_utc": "2026-11-24T18:10:53+00:00"
+  },
+  "training": {
+    "steps": 5,
+    "tokens_seen": 640,
+    "dataset": "wikitext2-train",
+    "dataset_config": null,
+    "init_ppl": 4780.966630181724,
+    "teacher_ppl": 24.534028467882354,
+    "best_mid_eval_ppl": 4780.966630181724,
+    "final_train_loss": 3.827678680419922,
+    "initial_train_loss": 5.459205627441406,
+    "checkpoint_latest": "checkpoints/phase1/smoke_binary_e8_from_ternary_gpt2_win2/latest.pt",
+    "train_log_jsonl": "checkpoints/phase1/smoke_binary_e8_from_ternary_gpt2_win2/train_log.jsonl"
+  }
+}

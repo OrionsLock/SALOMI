@@ -195,6 +195,8 @@ class BitReport:
     linear_params: int = 0
     linear_bits: float = 0.0
     total_params: int = 0
+    embed_params: int = 0
+    embed_bits: float = 0.0
     per_layer: Dict[str, Dict[str, float]] = field(default_factory=dict)
 
     def add(self, name: str, n_params: int, bits: float) -> None:
@@ -202,27 +204,57 @@ class BitReport:
         self.linear_bits += bits
         self.per_layer[name] = {"params": n_params, "bits": bits, "bpp": bits / max(n_params, 1)}
 
+    def add_embedding(self, name: str, n_params: int, bits: float) -> None:
+        """Record quantized embedding parameters (counted once even if tied with LM head)."""
+        self.embed_params += n_params
+        self.embed_bits += bits
+        self.per_layer[name] = {
+            "params": n_params,
+            "bits": bits,
+            "bpp": bits / max(n_params, 1),
+            "kind": "embedding",
+        }
+
     @property
     def bpp_linear(self) -> float:
         return self.linear_bits / max(self.linear_params, 1)
 
     @property
+    def bpp_embed(self) -> Optional[float]:
+        if self.embed_params <= 0:
+            return None
+        return self.embed_bits / self.embed_params
+
+    @property
     def other_params(self) -> int:
-        return self.total_params - self.linear_params
+        return self.total_params - self.linear_params - self.embed_params
+
+    @property
+    def total_bits(self) -> float:
+        """Total model storage bits: quantized linears + quantized embeddings + FP16 remainder."""
+        return self.linear_bits + self.embed_bits + 16.0 * self.other_params
+
+    @property
+    def total_bytes(self) -> float:
+        return self.total_bits / 8.0
 
     @property
     def bpp_whole_model(self) -> float:
-        """Quantized linears + every other parameter at 16 bits, over all parameters."""
-        return (self.linear_bits + 16.0 * self.other_params) / max(self.total_params, 1)
+        """Quantized linears + quantized embeddings + every other parameter at 16 bits, over all parameters."""
+        return self.total_bits / max(self.total_params, 1)
 
     def summary(self) -> Dict[str, float]:
-        return {
+        out: Dict[str, float] = {
             "bpp_linear": self.bpp_linear,
             "bpp_whole_model": self.bpp_whole_model,
             "linear_params": self.linear_params,
             "other_params_fp16": self.other_params,
             "total_params": self.total_params,
         }
+        if self.embed_params > 0:
+            out["embed_params"] = self.embed_params
+            out["bpp_embed"] = self.embed_bits / self.embed_params
+        return out
 
 
 def unique_param_count(model: nn.Module) -> int:
@@ -419,6 +451,62 @@ def run(cfg: RunConfig) -> Dict:
     }
     record["config"].pop("out_dir", None)
     path = write_result(record, cfg.out_dir)
+    print(
+        f"[harness] {record['run_name']}: ppl={res['ppl']:.3f}  bpp_linear={report.bpp_linear:.4f}  "
+        f"bpp_whole={report.bpp_whole_model:.4f}  -> {os.path.relpath(path, REPO_ROOT)}",
+        flush=True,
+    )
+    return record
+
+
+def evaluate_model(
+    model: nn.Module,
+    tokenizer,
+    report: BitReport,
+    run_name: str,
+    config: Dict,
+    out_dir: str = os.path.join(REPO_ROOT, "results", "phase1"),
+    seqlen: int = 1024,
+    max_windows: Optional[int] = None,
+    device: Optional[str] = None,
+    eval_ids: Optional[torch.Tensor] = None,
+    extra_timing: Optional[Dict[str, float]] = None,
+    training_summary: Optional[Dict] = None,
+) -> Dict:
+    """Evaluate an already-constructed (e.g., KD-QAT) model under the canonical WikiText-2 test protocol."""
+    if eval_ids is None:
+        eval_ids = load_eval_ids(tokenizer, "wikitext2", "test")
+    t0 = time.time()
+    res = perplexity(model, eval_ids, seqlen=seqlen, max_windows=max_windows, device=device)
+    eval_seconds = time.time() - t0
+
+    if report.embed_params > 0:
+        quantized_desc = "transformer-block linear weights + quantized embeddings/tied lm_head; LN/biases kept FP"
+    else:
+        quantized_desc = "transformer-block linear weights; embeddings/LN/biases/lm_head kept FP"
+
+    timing = dict(extra_timing or {})
+    timing["eval"] = eval_seconds
+
+    record: Dict = {
+        "run_name": run_name,
+        "protocol": {
+            "dataset": "wikitext-2-raw-v1/test",
+            "join": "\\n\\n",
+            "seqlen": seqlen,
+            "windows": res["windows"],
+            "scored_tokens": res["tokens"],
+            "full_test_set": max_windows is None,
+            "quantized": quantized_desc,
+        },
+        "config": dict(config),
+        "result": {"ppl": res["ppl"], "nll": res["nll"], **report.summary()},
+        "timing_seconds": timing,
+        "env": environment_info(),
+    }
+    if training_summary is not None:
+        record["training"] = dict(training_summary)
+    path = write_result(record, out_dir)
     print(
         f"[harness] {record['run_name']}: ppl={res['ppl']:.3f}  bpp_linear={report.bpp_linear:.4f}  "
         f"bpp_whole={report.bpp_whole_model:.4f}  -> {os.path.relpath(path, REPO_ROOT)}",
