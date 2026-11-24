@@ -44,3 +44,7 @@ diag_*.txt
 tmp_*.txt
 err.txt
 out.txt
+
+# Training checkpoints
+checkpoints/
+
